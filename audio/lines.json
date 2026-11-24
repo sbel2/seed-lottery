@@ -52,8 +52,8 @@
     "hash": "58a5c414"
   },
   {
-    "text": "Ours is a toy model, but the paper saw the same spread with the real BERT, across 2,100 runs.",
-    "hash": "6d302123"
+    "text": "Ours is a toy model, but the paper saw the same performance swings with the real BERT, across 2,100 runs.",
+    "hash": "a92e13f9"
   },
   {
     "text": "Out of the two things that the seed sets, the starting weights and the shuffle order. Which one causes the spread?",

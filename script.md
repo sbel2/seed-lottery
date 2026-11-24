@@ -66,7 +66,7 @@ Current length: 2:33, 32 lines.
 
    The worst scored 60.8%, the best 82.5%. That’s a 21.7-point spread from the seed alone.
 
-14. **paper1** (6.5s) · _on screen: Same picture, held_
+14. **paper1** (6.9s) · _on screen: Same picture, held_
 
    Ours is a toy model, but the paper saw the same performance swings with the real BERT, across 2,100 runs.
 
