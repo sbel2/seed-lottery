@@ -8,24 +8,28 @@
     "hash": "15dc220e"
   },
   {
-    "text": "We fine-tune it for one task: do two sentences mean the same thing? It trains on 64 examples and is tested on 400 new ones.",
-    "hash": "40c42e9b"
+    "text": "We fine-tune it for one task, like judging whether two sentences mean the same thing.",
+    "hash": "2a202421"
+  },
+  {
+    "text": "It trains on 64 examples and is tested on 400 new ones.",
+    "hash": "ebc6e4e5"
   },
   {
     "text": "The task needs a new output layer, and its weights start out random.",
     "hash": "60bc8ee0"
   },
   {
-    "text": "The training examples get shuffled into a random order.",
-    "hash": "e57f55be"
+    "text": "The training examples get reshuffled before every pass.",
+    "hash": "3153878a"
   },
   {
-    "text": "Both random choices come from one number, the seed.",
-    "hash": "8d9a5be8"
+    "text": "Both random choices come from one number, the seed. Same seed, same weights and same shuffles.",
+    "hash": "3b7d5cd1"
   },
   {
-    "text": "Here’s training with seed 1. The model goes through the examples six times, and every weight shifts a little.",
-    "hash": "ffcc8110"
+    "text": "Here’s training with seed 1. Six passes through the examples, each in its own shuffled order.",
+    "hash": "79e6a8e8"
   },
   {
     "text": "It gets 78% of the test examples right. That’s the orange dot.",
@@ -48,8 +52,8 @@
     "hash": "58a5c414"
   },
   {
-    "text": "The paper found the same with BERT, over 2,100 runs.",
-    "hash": "1fdbddf5"
+    "text": "Ours is a toy model, but the paper saw the same spread with the real BERT, across 2,100 runs.",
+    "hash": "6d302123"
   },
   {
     "text": "The seed sets two things, the starting weights and the order. Which one causes the spread?",
@@ -116,7 +120,11 @@
     "hash": "003b0a66"
   },
   {
-    "text": "A single score hides a lottery. So when you see one, ask how many seeds it took.",
-    "hash": "356709b3"
+    "text": "So that’s the seed lottery: two random choices, and a 21.7-point spread in the score.",
+    "hash": "12e93d08"
+  },
+  {
+    "text": "Search it cheaply, compare at equal tries, and when you see a single score, ask how many seeds it took.",
+    "hash": "b362ac47"
   }
 ]

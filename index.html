@@ -32,6 +32,19 @@ h1 { font-weight: 600; font-size: 22px; line-height: 1.15; letter-spacing: -0.01
 .top { display: flex; align-items: center; justify-content: center; min-width: 0; transition: opacity .45s; }
 .top > div { width: 100%; }
 .top > [hidden] { display: none; }
+.top { position: relative; }
+#ex { transition: opacity .4s; }
+#ex.back { opacity: .1; }
+.top > #task { position: absolute; inset: 0; width: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; opacity: 0; pointer-events: none; transition: opacity .4s; }
+.top > #task.in { opacity: 1; }
+#task .tl { font: 500 12px var(--mono); color: var(--ink-3); letter-spacing: .04em; text-transform: uppercase; }
+#task .pairs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 760px; width: 100%; }
+#task .pair { border-radius: 12px; padding: 14px 16px; background: rgba(255,255,255,.05); display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.35; color: var(--ink); opacity: 0; transition: opacity .4s; }
+#task .pair.in { opacity: 1; }
+#task .pair b { font: 500 13px var(--mono); margin-top: 2px; }
+#task .pair.yes b { color: var(--pos); }
+#task .pair.no b { color: var(--accent-2); }
+@media (max-width: 700px) { #task .pairs { grid-template-columns: 1fr; gap: 8px; } #task .pair { font-size: 13px; padding: 10px 12px; } }
 #wide { max-width: 760px; }
 .bottom { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
 #axis { transition: opacity .45s; }
@@ -155,6 +168,13 @@ body { background: radial-gradient(120% 80% at 50% 0%, #1e2431 0%, #14171d 55%, 
     <div class="top" id="top">
       <div id="ex"></div>
       <div id="wide" hidden></div>
+      <div id="task" aria-hidden="true">
+        <span class="tl">Example task: same meaning?</span>
+        <div class="pairs">
+          <div class="pair yes"><span>“The council approved the budget on Monday.”</span><span>“On Monday, the budget was approved by the council.”</span><b>✓ same meaning</b></div>
+          <div class="pair no"><span>“The council approved the budget on Monday.”</span><span>“The council will vote on the budget on Monday.”</span><b>✗ different</b></div>
+        </div>
+      </div>
     </div>
     <div class="bottom" id="bottom"><div id="axis"></div></div>
     <p class="caption" id="cap" aria-live="polite"></p>
@@ -309,11 +329,12 @@ function LINES(st) {
     // 1 · the setup
     hook: 'Train the same model twice and you can get two very different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets.',
     net: 'Here’s a small neural network. The grey layers stand in for a pretrained model like BERT.',
-    tune: 'We fine-tune it for one task: do two sentences mean the same thing? It trains on 64 examples and is tested on 400 new ones.',
+    task: 'We fine-tune it for one task, like judging whether two sentences mean the same thing.',
+    tune: 'It trains on 64 examples and is tested on 400 new ones.',
     head: 'The task needs a new output layer, and its weights start out random.',
-    data: 'The training examples get shuffled into a random order.',
-    seed: 'Both random choices come from one number, the seed.',
-    run1: 'Here’s training with seed 1. The model goes through the examples six times, and every weight shifts a little.',
+    data: 'The training examples get reshuffled before every pass.',
+    seed: 'Both random choices come from one number, the seed. Same seed, same weights and same shuffles.',
+    run1: 'Here’s training with seed 1. Six passes through the examples, each in its own shuffled order.',
     score1: 'It gets ' + pct(st.first, 0) + ' of the test examples right. That’s the orange dot.',
     // 2 · the problem
     change: 'Now change only the seed.',
@@ -321,7 +342,7 @@ function LINES(st) {
     hundred: 'Here are a hundred seeds.',
     dist: 'Each dot is one full training run.',
     swing: 'The worst scored ' + pct(st.lo) + ', the best ' + pct(st.hi) + '. That’s a ' + swing + '-point spread from the seed alone.',
-    paper1: 'The paper found the same with BERT, over 2,100 runs.',
+    paper1: 'Ours is a toy model, but the paper saw the same spread with the real BERT, across 2,100 runs.',
     // 4 · the two types of randomness
     suspects: 'The seed sets two things, the starting weights and the order. Which one causes the spread?',
     lockW: 'Fix the weights and change only the order.',
@@ -344,7 +365,8 @@ function LINES(st) {
       ? 'The best run of all 100 is among the ' + KEEP + ' we kept'
       : 'The best run we kept finishes at ' + pct(st.bestCut) + ', against ' + pct(st.hi) + ' for the best of all 100') +
       ', for about ' + cost + ' runs’ worth of training instead of 100.',
-    end: 'A single score hides a lottery. So when you see one, ask how many seeds it took.',
+    wrap: 'So that’s the seed lottery: two random choices, and a ' + swing + '-point spread in the score.',
+    end: 'Search it cheaply, compare at equal tries, and when you see a single score, ask how many seeds it took.',
   };
 }
 </script>
@@ -388,8 +410,8 @@ function LINES(st) {
   function trimOf(buf) {
     const d = buf.getChannelData(0), sr = buf.sampleRate, win = Math.round(sr * 0.01), rms = i => { let s = 0; for (let k = i; k < i + win; k++) s += d[k] * d[k]; return Math.sqrt(s / win); };
     let a = 0; while (a < d.length - win && rms(a) < 0.006) a += win;
-    let b = d.length - Math.round(sr * 0.08) - win; while (b > a && rms(b) < 0.006) b -= win;
-    return { s0: Math.max(0, a / sr - 0.03), s1: Math.min(buf.duration, (b + win) / sr + 0.06) };
+    let b = d.length - Math.round(sr * 0.08) - win; while (b > a && rms(b) < 0.002) b -= win;
+    return { s0: Math.max(0, a / sr - 0.03), s1: Math.min(buf.duration, (b + win) / sr + 0.12) };
   }
   function loadClips(lines) {
     return Promise.all(lines.map(async t => {
@@ -548,7 +570,7 @@ function LINES(st) {
     function paintCards() {
       if (!R.cards) return;
       const pos = new Array(NEX), g = R.g;
-      if (st.do === null) for (let k = 0; k < NEX; k++) pos[k] = k; else orderOf(st.do, st.ep).forEach((k, p) => { pos[k] = p; });
+      if (st.do === null) for (let k = 0; k < NEX; k++) pos[k] = k; else orderOf(st.do, st.lock === 'o' ? 0 : st.ep).forEach((k, p) => { pos[k] = p; });
       R.cards.forEach((c, k) => { c.style.transform = 'translate(' + ((pos[k] % COLS) * g.cs).toFixed(2) + 'px,' + (g.gy0 + Math.floor(pos[k] / COLS) * g.ch).toFixed(2) + 'px)'; });
     }
     function paintCurve() {
@@ -728,6 +750,7 @@ function LINES(st) {
     const f = (S.ft - s.at) / s.dur; let i = s.ends.findIndex(e => f < e); if (i < 0) i = s.parts.length - 1;
     if (i !== s.i) { s.i = i; caption(s.parts[i], $('stage').classList.contains('seeking')); }
   }
+  const task = n => { $('task').classList.toggle('in', n > 0); $('ex').classList.toggle('back', n > 0); $('task').querySelectorAll('.pair').forEach((p, k) => p.classList.toggle('in', k < n)); };
   const look = where => { $('top').classList.toggle('dim', where === 'axis'); $('axis').classList.toggle('dim', where === 'top'); };
   function methods(a, b) {
     S.topDraw = () => methods(a, b);
@@ -784,9 +807,10 @@ function LINES(st) {
     const e1 = S.E(1), e20 = S.E(20), climb = '+' + ((e20 - e1) * 100).toFixed(1) + ' points';
     
     // ----- 1 · The setup: a pretrained model, fine-tuned; the seed's two random choices -----
-    progress(0, 0); ex.reset(); ex.show([]); S.ax = { shown: 0 }; zone('ex'); look(null);
+    progress(0, 0); task(0); ex.reset(); ex.show([]); S.ax = { shown: 0 }; zone('ex'); look(null);
     await cue(L.hook); await W(1800); S.ax.shown = 1; renderAxis(live); await W(1000); S.ax.shown = 2; renderAxis(live); await done(60);
     ex.show(['body']); await say(L.net, 60);
+    task(1); await cue(L.task); await W(2200); task(2); await done(500); task(0);
     ex.show(['body', 'o', 'score']); ex.focus('o', 'score'); await say(L.tune, 60);
     ex.show(['body', 'o', 'w', 'score']); ex.focus('w'); await cue(L.head); await W(400); ex.weights(wiOf(order1[0])); await done(40);
     ex.focus('o'); await cue(L.data); await W(300); ex.order(doOf(order1[0])); await done(80);
@@ -871,6 +895,8 @@ function LINES(st) {
     race.end = true; drawRace(race);
     S.ax = { shown: N, lit: new Set(S.kept), best: S.best }; renderAxis(live);
     await say(L.race3, 150);
+    $('top').classList.add('dim'); S.ax = { shown: N, bracket: { a: S.lo, b: S.hi, label: ((S.hi - S.lo) * 100).toFixed(1) + ' points' } }; renderAxis();
+    await say(L.wrap, 100);
     await say(L.end, 1200);
     goLive(); S.ended = true; $('pp').textContent = 'Replay';
   }

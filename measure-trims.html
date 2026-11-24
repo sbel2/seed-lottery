@@ -16,8 +16,8 @@ It finds where the speech starts and ends in each clip, the same way index.html 
     const buf = await ac.decodeAudioData(await r.arrayBuffer());
     const d = buf.getChannelData(0), sr = buf.sampleRate, win = Math.round(sr * 0.01), rms = i => { let s = 0; for (let k = i; k < i + win; k++) s += d[k] * d[k]; return Math.sqrt(s / win); };
     let a = 0; while (a < d.length - win && rms(a) < 0.006) a += win;
-    let b = d.length - Math.round(sr * 0.08) - win; while (b > a && rms(b) < 0.006) b -= win;
-    o[hash] = [+Math.max(0, a / sr - 0.03).toFixed(3), +Math.min(buf.duration, (b + win) / sr + 0.06).toFixed(3)];
+    let b = d.length - Math.round(sr * 0.08) - win; while (b > a && rms(b) < 0.002) b -= win;
+    o[hash] = [+Math.max(0, a / sr - 0.03).toFixed(3), +Math.min(buf.duration, (b + win) / sr + 0.12).toFixed(3)];
   }
   document.getElementById('out').value = 'window.TRIMS = ' + JSON.stringify(o) + ';\n';
   document.getElementById('status').textContent = Object.keys(o).length + ' of ' + lines.length + ' clips measured.';
