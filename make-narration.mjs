@@ -12,7 +12,7 @@
 // plays a clip if it exists for the line on screen and falls back to the browser's voice if not.
 
 // Voice and pace. Brian: nPczCjzI2devNBz1zQrb · Liam: TX3LPaxmHKxFdv7VOQHJ · Will: bIHbv24MWmeRgasZH58o · Chris: iP95p4xoKVk53GoZ742B
-const VOICE = 'TX3LPaxmHKxFdv7VOQHJ', SPEED = 1.15;   // speed: 0.7 to 1.2
+const VOICE = 'TX3LPaxmHKxFdv7VOQHJ', SPEED = 1.05;   // speed: 0.7 to 1.2
 
 import fs from 'node:fs';
 import path from 'node:path';
