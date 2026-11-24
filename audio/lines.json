@@ -1,7 +1,7 @@
 [
   {
-    "text": "Train the same model twice and you can get two very different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets.",
-    "hash": "81b1feab"
+    "text": "Often times, training the same model twice can get you two very different performances. A 2020 paper by Dodge and colleagues measured how big that gap gets.",
+    "hash": "60f83d18"
   },
   {
     "text": "Here’s a small neural network. The grey layers stand in for a pretrained model like BERT.",
@@ -16,24 +16,24 @@
     "hash": "ebc6e4e5"
   },
   {
-    "text": "The task needs a new output layer, and its weights start out random.",
-    "hash": "60bc8ee0"
+    "text": "Because the new task has its own set of outputs, we add a fresh output layer, whose weights are randomly initialized rather than pretrained.",
+    "hash": "ac1c9c9c"
   },
   {
-    "text": "The training examples get reshuffled before every pass.",
-    "hash": "3153878a"
+    "text": "And the training examples get reshuffled before every pass.",
+    "hash": "ae0b3267"
   },
   {
-    "text": "Both random choices come from one number, the seed. Same seed, same weights and same shuffles.",
-    "hash": "3b7d5cd1"
+    "text": "The seed sets the starting weights and training order. And now we run the network.",
+    "hash": "95df6904"
   },
   {
     "text": "Here’s training with seed 1. Six passes through the examples, each in its own shuffled order.",
     "hash": "79e6a8e8"
   },
   {
-    "text": "It gets 78% of the test examples right. That’s the orange dot.",
-    "hash": "7e532043"
+    "text": "It gets 78% of the test examples right.",
+    "hash": "d34fd914"
   },
   {
     "text": "Now change only the seed.",
@@ -56,12 +56,12 @@
     "hash": "6d302123"
   },
   {
-    "text": "The seed sets two things, the starting weights and the order. Which one causes the spread?",
-    "hash": "89036389"
+    "text": "Out of the two things that the seed sets, the starting weights and the shuffle order. Which one causes the spread?",
+    "hash": "a03b9f8f"
   },
   {
-    "text": "Fix the weights and change only the order.",
-    "hash": "60a12594"
+    "text": "Let’s first fix the weights and change only the order.",
+    "hash": "e5c09431"
   },
   {
     "text": "Accuracy still moves 11.2 points.",
@@ -104,8 +104,8 @@
     "hash": "baf23bc9"
   },
   {
-    "text": "One, start many runs. Here are all 100.",
-    "hash": "c73e6be6"
+    "text": "One, start many runs. Let’s say 100.",
+    "hash": "e53fd459"
   },
   {
     "text": "Two, stop the weak ones early. A quarter of the way in, we keep the top 30.",
@@ -120,11 +120,11 @@
     "hash": "003b0a66"
   },
   {
-    "text": "So that’s the seed lottery: two random choices, and a 21.7-point spread in the score.",
-    "hash": "12e93d08"
+    "text": "Here is the conclusion: A 21.7-point spread from two random choices. So search seeds cheaply, and compare methods at equal tries.",
+    "hash": "6cb7aa0b"
   },
   {
-    "text": "Search it cheaply, compare at equal tries, and when you see a single score, ask how many seeds it took.",
-    "hash": "b362ac47"
+    "text": "And when you see a single score, ask how many seeds it took.",
+    "hash": "da739f79"
   }
 ]

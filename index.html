@@ -327,15 +327,15 @@ function LINES(st) {
   const climb = ((st.E(20) - st.E(1)) * 100).toFixed(1), swing = ((st.hi - st.lo) * 100).toFixed(1), cost = Math.round(st.cutCost);
   return {
     // 1 · the setup
-    hook: 'Train the same model twice and you can get two very different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets.',
+    hook: 'Often times, training the same model twice can get you two very different performances. A 2020 paper by Dodge and colleagues measured how big that gap gets.',
     net: 'Here’s a small neural network. The grey layers stand in for a pretrained model like BERT.',
     task: 'We fine-tune it for one task, like judging whether two sentences mean the same thing.',
     tune: 'It trains on 64 examples and is tested on 400 new ones.',
-    head: 'The task needs a new output layer, and its weights start out random.',
-    data: 'The training examples get reshuffled before every pass.',
-    seed: 'Both random choices come from one number, the seed. Same seed, same weights and same shuffles.',
+    head: 'Because the new task has its own set of outputs, we add a fresh output layer, whose weights are randomly initialized rather than pretrained.',
+    data: 'And the training examples get reshuffled before every pass.',
+    seed: 'The seed sets the starting weights and training order. And now we run the network.',
     run1: 'Here’s training with seed 1. Six passes through the examples, each in its own shuffled order.',
-    score1: 'It gets ' + pct(st.first, 0) + ' of the test examples right. That’s the orange dot.',
+    score1: 'It gets ' + pct(st.first, 0) + ' of the test examples right.',
     // 2 · the problem
     change: 'Now change only the seed.',
     // 3 · showing it
@@ -344,8 +344,8 @@ function LINES(st) {
     swing: 'The worst scored ' + pct(st.lo) + ', the best ' + pct(st.hi) + '. That’s a ' + swing + '-point spread from the seed alone.',
     paper1: 'Ours is a toy model, but the paper saw the same spread with the real BERT, across 2,100 runs.',
     // 4 · the two types of randomness
-    suspects: 'The seed sets two things, the starting weights and the order. Which one causes the spread?',
-    lockW: 'Fix the weights and change only the order.',
+    suspects: 'Out of the two things that the seed sets, the starting weights and the shuffle order. Which one causes the spread?',
+    lockW: 'Let’s first fix the weights and change only the order.',
     g1: 'Accuracy still moves ' + st.g1.toFixed(1) + ' points.',
     lockO: 'Now fix the order and change only the weights.',
     g2: st.g2.toFixed(1) + ' points. Both matter, and in the paper they mattered about equally.',
@@ -358,15 +358,15 @@ function LINES(st) {
     fix: 'So compare methods at the same number of tries.',
     // 6 · the three steps
     race1: 'More tries cost more compute, so the paper suggests a cheaper search, in three steps.',
-    step1: 'One, start many runs. Here are all 100.',
+    step1: 'One, start many runs. Let’s say 100.',
     step2: 'Two, stop the weak ones early. A quarter of the way in, we keep the top ' + KEEP + '.',
     step3: 'Three, finish only the best.',
     race3: (st.bestCut === st.hi
       ? 'The best run of all 100 is among the ' + KEEP + ' we kept'
       : 'The best run we kept finishes at ' + pct(st.bestCut) + ', against ' + pct(st.hi) + ' for the best of all 100') +
       ', for about ' + cost + ' runs’ worth of training instead of 100.',
-    wrap: 'So that’s the seed lottery: two random choices, and a ' + swing + '-point spread in the score.',
-    end: 'Search it cheaply, compare at equal tries, and when you see a single score, ask how many seeds it took.',
+    wrap: 'Here is the conclusion: A ' + swing + '-point spread from two random choices. So search seeds cheaply, and compare methods at equal tries.',
+    end: 'And when you see a single score, ask how many seeds it took.',
   };
 }
 </script>
