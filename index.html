@@ -174,6 +174,7 @@ body { background: radial-gradient(120% 80% at 50% 0%, #1e2431 0%, #14171d 55%, 
 <div id="tip" role="presentation"></div>
 
 <!-- core: the simulation. Pure functions, also run by make-narration.mjs to compute the spoken numbers. -->
+<script src="audio/trims.js"></script>
 <script id="core">
 function mulberry32(a) {
   return function () {
@@ -397,18 +398,21 @@ function LINES(st) {
       try {
         if (!ctx) throw 0;
         const r = await fetch(src); if (!r.ok) return;
-        const buf = await ctx.decodeAudioData(await r.arrayBuffer()), { s0, s1 } = trimOf(buf);
+        const buf = await ctx.decodeAudioData(await r.arrayBuffer()), tr = (window.TRIMS || {})[lineHash(t)], { s0, s1 } = tr ? { s0: tr[0], s1: Math.min(buf.duration, tr[1]) } : trimOf(buf);
         V.clips[t] = { buf, s0, s1, ms: (s1 - s0) * 1000 };
       } catch (e) {   // opened as a file: fall back to a plain audio element
         await new Promise(res => {
           const a = new Audio(); let fin = false; const end = () => { if (!fin) { fin = true; res(); } };
-          a.preload = 'auto'; a.onloadedmetadata = () => { if (isFinite(a.duration) && a.duration > 0) V.clips[t] = { a, ms: a.duration * 1000 }; end(); };
+          a.preload = 'auto'; a.onloadedmetadata = () => {
+            if (isFinite(a.duration) && a.duration > 0) { const tr = (window.TRIMS || {})[lineHash(t)]; V.clips[t] = tr ? { a, s0: tr[0], s1: tr[1], ms: (tr[1] - tr[0]) * 1000 } : { a, ms: a.duration * 1000 }; }
+            end();
+          };
           a.onerror = end; setTimeout(end, 4000); a.src = src;
         });
       }
     }));
   }
-  const lineMs = t => V.clips[t] ? V.clips[t].ms + (V.clips[t].buf ? 120 : 150) : 450 + t.length * 72;
+  const lineMs = t => V.clips[t] ? V.clips[t].ms + (V.clips[t].s1 ? 120 : 150) : 450 + t.length * 72;
   function voiceStop() {
     playing.forEach(s => { try { s.stop(); } catch (e) {} }); playing.clear();
     if (V.a) { V.a.pause(); V.a = null; }
@@ -431,8 +435,9 @@ function LINES(st) {
     }
     if (c) {
       const a = c.a; V.a = a;
-      try { a.currentTime = (offMs || 0) / 1000; } catch (e) {}
+      try { a.currentTime = (c.s0 || 0) + (offMs || 0) / 1000; } catch (e) {}
       a.play().then(() => { if (S.paused) a.pause(); }).catch(() => {});
+      if (c.s1) { const stop = () => { if (V.a !== a) return; if (a.currentTime >= c.s1) { a.pause(); V.a = null; } else requestAnimationFrame(stop); }; requestAnimationFrame(stop); }   // cut before the trailing silence and click
       return;
     }
     if ((offMs || 0) > 400 || !window.speechSynthesis) return;   // the browser voice cannot start mid-line
@@ -794,14 +799,14 @@ function LINES(st) {
     // ----- 2 · The problem: change only the seed -----
     progress(1, 0); S.ax = { shown: 2, markLast: true };
     await cue(L.change);
-    for (let n = 3; n <= 5; n++) { await run(n, 1000); await W(80); }
+    for (let n = 3; n <= 5; n++) { await run(n, 800); await W(60); }
     await done(0);
 
     // ----- 3 · Showing it: a hundred seeds -----
     progress(2, 0); await cue(L.hundred);
     ex.quick(true);
-    for (let n = 6; n <= 20; n++) { await run(n, 0); await W(110); }
-    for (let n = 21; n <= N; n++) { await run(n, 0); await W(22); }
+    for (let n = 6; n <= 20; n++) { await run(n, 0); await W(80); }
+    for (let n = 21; n <= N; n++) { await run(n, 0); await W(14); }
     ex.quick(false); S.ax.markLast = false; renderAxis();
     await done(0);
     look('axis'); await say(L.dist, 80);
@@ -816,18 +821,18 @@ function LINES(st) {
     const lane = async (ids, step) => {
       S.ax = { shown: N, lit: new Set() }; renderAxis();
       for (const i of ids) {
-        step(i); ex.score(''); ex.curve(null, 0); await W(100);
-        await train(i, 300); ex.score(pct(S.fin[i])); S.ax.lit.add(i); renderAxis(); await W(60);
+        step(i); ex.score(''); ex.curve(null, 0); await W(60);
+        await train(i, 250); ex.score(pct(S.fin[i])); S.ax.lit.add(i); renderAxis(); await W(40);
       }
       const vs = ids.map(i => S.fin[i]), a = Math.min(...vs), b = Math.max(...vs);
       S.ax.bracket = { a, b, label: ((b - a) * 100).toFixed(1) + ' points' }; renderAxis();
     };
     ex.weights(0); ex.order(0); ex.lock('w');
-    await cue(L.lockW); await W(150);
+    await cue(L.lockW); await W(100);
     await lane(Array.from({ length: K }, (_, d) => d), i => ex.order(doOf(i)));
     await done(0); look('axis'); await say(L.g1, 80); look(null);
     ex.order(0); ex.lock('o');
-    await cue(L.lockO); await W(150);
+    await cue(L.lockO); await W(100);
     await lane(Array.from({ length: K }, (_, w) => w * K), i => ex.weights(wiOf(i)));
     await done(0); look('axis'); await say(L.g2, 120); look(null); ex.lock(null);
 
@@ -862,9 +867,9 @@ function LINES(st) {
     await say(L.race1, 80);
     const atStop = STOP / (S.L - 1);
     await cue(L.race2); await W(300);
-    await tween(2300, u => { race.u = atStop * u; drawRace(race); });
+    await tween(2000, u => { race.u = atStop * u; drawRace(race); });
     await W(300); race.cut = true; drawRace(race); await W(250);
-    await tween(2800, u => { race.u = atStop + (1 - atStop) * u; drawRace(race); });
+    await tween(2500, u => { race.u = atStop + (1 - atStop) * u; drawRace(race); });
     await done(0);
     race.end = true; drawRace(race);
     S.ax = { shown: N, lit: new Set(S.kept), best: S.best }; renderAxis(live);

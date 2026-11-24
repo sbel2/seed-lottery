@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Measure narration trims</title>
+<style>body { font: 14px system-ui, sans-serif; margin: 2rem; max-width: 60rem; } textarea { width: 100%; height: 14rem; font: 12px monospace; }</style>
+<h1>Measure narration trims</h1>
+<p>Serve this folder (<code>python -m http.server</code>), open this page, then save the text below as <code>audio/trims.js</code>.
+It finds where the speech starts and ends in each clip, the same way index.html does, so the film runs the same length when opened as a file.</p>
+<p id="status">Measuring…</p>
+<textarea id="out" readonly></textarea>
+<p><button id="copy">Copy</button></p>
+<script>
+(async () => {
+  const lines = await fetch('audio/lines.json').then(r => r.json()), ac = new OfflineAudioContext(1, 44100, 44100), o = {};
+  for (const { hash } of lines) {
+    const r = await fetch('audio/' + hash + '.mp3'); if (!r.ok) continue;
+    const buf = await ac.decodeAudioData(await r.arrayBuffer());
+    const d = buf.getChannelData(0), sr = buf.sampleRate, win = Math.round(sr * 0.01), rms = i => { let s = 0; for (let k = i; k < i + win; k++) s += d[k] * d[k]; return Math.sqrt(s / win); };
+    let a = 0; while (a < d.length - win && rms(a) < 0.006) a += win;
+    let b = d.length - Math.round(sr * 0.08) - win; while (b > a && rms(b) < 0.006) b -= win;
+    o[hash] = [+Math.max(0, a / sr - 0.03).toFixed(3), +Math.min(buf.duration, (b + win) / sr + 0.06).toFixed(3)];
+  }
+  document.getElementById('out').value = 'window.TRIMS = ' + JSON.stringify(o) + ';\n';
+  document.getElementById('status').textContent = Object.keys(o).length + ' of ' + lines.length + ' clips measured.';
+  document.getElementById('copy').onclick = () => navigator.clipboard.writeText(document.getElementById('out').value);
+})();
+</script>
