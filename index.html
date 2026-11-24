@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Seed Lottery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page: #f6f7f9; --page-ink: #0e1116; --page-ink-3: #7a8191;
+  --body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; --page: #0d0f12; --page-ink: #eef0f4; --page-ink-3: #8c93a3; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--page-ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+main { max-width: 1120px; margin: 0 auto; padding: 14px 20px 14px; display: flex; flex-direction: column; gap: 10px; }
+.head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+h1 { font-weight: 600; font-size: 22px; line-height: 1.15; letter-spacing: -0.01em; margin: 0; }
+.kicker { font-family: var(--mono); font-size: 12px; color: var(--page-ink-3); }
+
+/* the stage: dark and cinematic in either theme */
+.stage {
+  --bg: #12151b; --surface: #171a21; --ink: #f3f5f8; --ink-2: #c3c9d4; --ink-3: #8a92a3; --line: #2c313b;
+  --accent: #4b94ec; --accent-2: #f07a45; --ghost: #5d6576; --pos: #4b94ec; --neg: #ef6262;
+  color-scheme: dark; color: var(--ink); position: relative; border-radius: 16px; padding: 18px 24px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: radial-gradient(120% 80% at 50% 0%, #1e2431 0%, #14171d 55%, #101216 100%);
+  box-shadow: 0 10px 40px rgba(0,0,0,.18);
+}
+.top { display: flex; align-items: center; justify-content: center; min-width: 0; transition: opacity .45s; }
+.top > div { width: 100%; }
+.top > [hidden] { display: none; }
+#wide { max-width: 680px; }
+.bottom { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+#axis { transition: opacity .45s; }
+.top.dim, #axis.dim { opacity: .2; }
+
+.caption { font-size: 20px; line-height: 1.35; color: #fff; min-height: 2.7em; max-width: 52ch; margin: 0 auto; text-align: center; text-wrap: balance; font-weight: 500; text-shadow: 0 2px 12px rgba(0,0,0,.6); transition: opacity .2s; }
+.caption.out { opacity: 0; }
+
+.btn { font: 500 14px var(--body); padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn[disabled] { opacity: .4; cursor: default; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ctl { display: flex; align-items: center; gap: 14px; }
+.ctl #pp { min-width: 82px; }
+.seek { flex: 1; padding: 12px 0; cursor: pointer; touch-action: none; }
+.seek:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.seek .track { position: relative; height: 4px; border-radius: 2px; background: var(--line); transition: height .15s; }
+.seek:hover .track { height: 6px; }
+.seek #fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 2px; background: var(--accent-2); }
+.seek #knob { position: absolute; top: 50%; left: 0; width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.seek #ticks i { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #12151b; z-index: 1; }
+.time { font: 400 12.5px var(--mono); color: var(--ink-3); min-width: 88px; text-align: right; font-variant-numeric: tabular-nums; }
+.stage.seeking *, .stage.seeking *::before, .stage.seeking *::after { transition: none !important; animation: none !important; }
+
+.curtain { position: absolute; inset: 0; z-index: 5; border-radius: 16px; background: rgba(14,16,20,.88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 20px; }
+.curtain[hidden] { display: none; }
+.curtain .btn { font-size: 18px; padding: 12px 28px; border-radius: 999px; }
+.curtain p { margin: 0; font-size: 14px; color: var(--ink-3); }
+
+/* chart marks */
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--mono); font-size: 11.5px; fill: var(--ink-3); }
+svg text.lbl { fill: var(--ink); font-weight: 500; }
+svg .gl { stroke: var(--line); stroke-width: 1; }
+svg .drop { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+svg .drop.pop { fill: var(--ghost); opacity: .4; }
+svg .drop.lit { fill: var(--accent); opacity: 1; }
+svg .drop.last { fill: var(--accent-2); opacity: 1; }
+@keyframes pop { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: none; } }
+svg .drop.anim { animation: pop .45s cubic-bezier(.34,1.56,.64,1) both; }
+svg .span { stroke: var(--ink); stroke-width: 1.5; fill: none; }
+svg .flag { stroke: var(--ink); stroke-width: 1.5; }
+svg .flag.b { stroke: var(--accent-2); }
+svg text.fl { font-family: var(--body); font-size: 13px; fill: var(--ink); font-weight: 500; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+svg text.fl.b { fill: var(--accent-2); }
+svg .dot { fill: var(--accent); }
+svg .hl { fill: var(--accent-2); }
+svg text.row { font-family: var(--body); font-size: 14px; fill: var(--ink-2); }
+svg text.row.hi { fill: var(--accent-2); font-weight: 600; }
+svg text.lab, .ex text.lab { font: 500 13px var(--body); fill: var(--ink-2); }
+
+/* the explainer: seed -> starting weights + training order -> score */
+.ex .part { opacity: 0; transition: opacity .5s; }
+.ex .part.in { opacity: 1; }
+.ex .part.in.dim { opacity: .18; }
+.ex .link { fill: none; stroke: var(--ink-3); stroke-opacity: .45; stroke-width: 1.5; }
+.ex .pulse { fill: none; stroke: var(--accent-2); stroke-width: 3; stroke-linecap: round; stroke-dasharray: .12 1.3; stroke-dashoffset: .12; opacity: 0; }
+.ex .pulse.go { animation: travel .55s ease-in both; }
+@keyframes travel { 0% { stroke-dashoffset: .12; opacity: 1; } 85% { opacity: 1; } 100% { stroke-dashoffset: -1; opacity: 0; } }
+.ex .seedc { fill: var(--bg); stroke: var(--accent-2); stroke-width: 2; }
+.ex .seedno { font: 500 22px var(--mono); fill: var(--accent-2); }
+.ex .seedg { transform-box: fill-box; transform-origin: 50% 50%; }
+.ex .seedg.bump { animation: bump .3s ease-out; }
+@keyframes bump { 40% { transform: scale(1.12); } }
+.ex .zero { stroke: var(--ink-3); stroke-opacity: .5; }
+.ex .card { transition: transform .75s cubic-bezier(.65,0,.35,1); }
+.ex .cursor { fill: rgba(240,122,69,.12); stroke: var(--accent-2); stroke-width: 1.5; }
+.ex .scoreno { font: 500 34px var(--mono); fill: var(--accent-2); }
+.ex .trace { fill: none; stroke: var(--accent-2); stroke-width: 2; stroke-linejoin: round; }
+.ex.quick .card, .ex.quick .hw { transition: none !important; }
+.ex .part.locked .lab { fill: var(--accent-2); }
+.ex .seedl { stroke: var(--accent-2); stroke-opacity: .55; stroke-dasharray: 4 3; }
+.ex .pw { stroke: var(--ink-3); stroke-width: .7; transition: stroke-opacity .25s; }
+.ex .hw { stroke: var(--ghost); stroke-width: 1; transition: stroke .35s, stroke-width .35s; }
+.ex .hw.pos { stroke: var(--pos); }
+.ex .hw.neg { stroke: var(--neg); }
+.ex .node { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.2; }
+.ex .node.outn { stroke: var(--ink); stroke-width: 1.6; }
+.methods { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 520px; margin: 0 auto; width: 100%; }
+.methods div { border-radius: 12px; padding: 14px; background: rgba(255,255,255,.04); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.methods b { font-size: 14px; font-weight: 500; color: var(--ink-2); }
+.methods span { font: 500 30px var(--mono); }
+.methods .b span { color: var(--accent-2); }
+.ex.still .wbar, .ex.still .card, .ex.still .part { transition: none !important; }
+
+#tip { position: fixed; pointer-events: none; background: #f3f5f8; color: #12151b; font: 400 12px var(--mono); padding: 6px 9px; border-radius: 6px; opacity: 0; transition: opacity .1s; z-index: 10; white-space: nowrap; }
+
+/* one surface: the stage is the page, no box around it */
+html { background: #101216; }
+body { background: radial-gradient(120% 80% at 50% 0%, #1e2431 0%, #14171d 55%, #101216 100%) fixed; color: #f3f5f8; }
+.kicker { color: #8a92a3; }
+.stage { background: none; box-shadow: none; border-radius: 0; padding-left: 0; padding-right: 0; }
+.curtain { position: fixed; border-radius: 0; background: radial-gradient(120% 80% at 50% 0%, #1e2431 0%, #14171d 55%, #101216 100%); }
+
+.caption { font-size: 18px; line-height: 1.38; height: 4.2em; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+/* the film fits one screen */
+@media (min-width: 861px) {
+  html, body { height: 100%; overflow: hidden; }
+  main { height: 100vh; height: 100dvh; }
+  .stage { flex: 1; min-height: 0; }
+}
+@media (max-width: 860px) { .caption { font-size: 17px; } .stage { padding: 14px; } }
+@media (prefers-reduced-motion: reduce) { *, .ex .part { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="head">
+    <h1>The seed lottery</h1>
+    <a class="kicker" href="https://arxiv.org/abs/2002.06305">Dodge et al., 2020</a>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="top" id="top">
+      <div id="ex"></div>
+      <div id="wide" hidden></div>
+    </div>
+    <div class="bottom" id="bottom"><div id="axis"></div></div>
+    <p class="caption" id="cap" aria-live="polite"></p>
+    <div class="ctl">
+      <button type="button" class="btn" id="pp">Pause</button>
+      <div class="seek" id="seek" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0"><div class="track"><span id="ticks"></span><i id="fill"></i><b id="knob"></b></div></div>
+      <span class="time" id="time">0:00</span>
+      <button type="button" class="btn" id="voice" aria-pressed="true">Sound on</button>
+    </div>
+    <div class="curtain" id="curtain">
+      <button type="button" class="btn primary" id="start" disabled>Preparing…</button>
+      <p id="prep">Training 100 tiny networks in your browser…</p>
+      <p>Narrated. Sound on.</p>
+    </div>
+  </div>
+</main>
+<div id="tip" role="presentation"></div>
+
+<!-- core: the simulation. Pure functions, also run by make-narration.mjs to compute the spoken numbers. -->
+<script id="core">
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gauss(rng) { let u = 0; while (u === 0) u = rng(); const v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+const D = 6, H = 16, TH = 12;
+const CFG = { bs: 4, epochs: 6, lr: 0.4, headScale: 3, checkpoints: 16 };
+const K = 10, N = 100, STOP = 4, KEEP = 30;
+
+function makeTeacher() {
+  const r = mulberry32(7);
+  const W = new Float64Array(TH * D), b = new Float64Array(TH);
+  for (let i = 0; i < W.length; i++) W[i] = gauss(r) * 0.9;
+  for (let i = 0; i < TH; i++) b[i] = gauss(r) * 0.3;
+  const a = new Float64Array(TH), c = new Float64Array(TH);
+  for (let i = 0; i < TH; i++) a[i] = gauss(r);
+  for (let i = 0; i < TH; i++) c[i] = 0.5 * a[i] + 0.87 * gauss(r);
+  return { W, b, a, c };
+}
+function teacherLabel(T, x, off, which) {
+  let s = 0; const ro = which === 'A' ? T.a : T.c;
+  for (let j = 0; j < TH; j++) { let z = T.b[j]; for (let k = 0; k < D; k++) z += T.W[j * D + k] * x[off + k]; s += ro[j] * Math.tanh(z); }
+  return s > 0 ? 1 : 0;
+}
+function makeData(T, n, seed, which, noise) {
+  const r = mulberry32(seed), X = new Float64Array(n * D), y = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    for (let k = 0; k < D; k++) X[i * D + k] = gauss(r);
+    let l = teacherLabel(T, X, i * D, which);
+    if (noise && r() < noise) l = 1 - l;
+    y[i] = l;
+  }
+  return { X, y, n };
+}
+function newBody(seed) {
+  const r = mulberry32(seed);
+  const W1 = new Float64Array(H * D), b1 = new Float64Array(H), W2 = new Float64Array(H * H), b2 = new Float64Array(H);
+  for (let i = 0; i < W1.length; i++) W1[i] = gauss(r) / Math.sqrt(D);
+  for (let i = 0; i < W2.length; i++) W2[i] = gauss(r) / Math.sqrt(H);
+  return { W1, b1, W2, b2 };
+}
+function newHead(seed, scale) { const r = mulberry32(seed), w = new Float64Array(H); for (let i = 0; i < H; i++) w[i] = gauss(r) * scale; return { w, b: 0 }; }
+function cloneBody(B) { return { W1: B.W1.slice(), b1: B.b1.slice(), W2: B.W2.slice(), b2: B.b2.slice() }; }
+const h1 = new Float64Array(H), h2 = new Float64Array(H), d1 = new Float64Array(H), d2 = new Float64Array(H);
+function forward(B, Hd, X, off) {
+  for (let j = 0; j < H; j++) { let z = B.b1[j]; for (let k = 0; k < D; k++) z += B.W1[j * D + k] * X[off + k]; h1[j] = Math.tanh(z); }
+  let o = Hd.b;
+  for (let j = 0; j < H; j++) { let z = B.b2[j]; for (let k = 0; k < H; k++) z += B.W2[j * H + k] * h1[k]; h2[j] = Math.tanh(z); o += Hd.w[j] * h2[j]; }
+  return o;
+}
+function sgdStep(B, Hd, X, y, idx, start, bs, lr) {
+  const gW1 = new Float64Array(H * D), gb1 = new Float64Array(H), gW2 = new Float64Array(H * H), gb2 = new Float64Array(H), gw = new Float64Array(H);
+  let gb = 0;
+  for (let t = 0; t < bs; t++) {
+    const i = idx[start + t], off = i * D, o = forward(B, Hd, X, off), p = 1 / (1 + Math.exp(-o)), g = (p - y[i]) / bs;
+    gb += g;
+    for (let j = 0; j < H; j++) { gw[j] += g * h2[j]; d2[j] = g * Hd.w[j] * (1 - h2[j] * h2[j]); }
+    for (let k = 0; k < H; k++) d1[k] = 0;
+    for (let j = 0; j < H; j++) { gb2[j] += d2[j]; for (let k = 0; k < H; k++) { gW2[j * H + k] += d2[j] * h1[k]; d1[k] += d2[j] * B.W2[j * H + k]; } }
+    for (let k = 0; k < H; k++) { const dk = d1[k] * (1 - h1[k] * h1[k]); gb1[k] += dk; for (let m = 0; m < D; m++) gW1[k * D + m] += dk * X[off + m]; }
+  }
+  for (let i = 0; i < gW1.length; i++) B.W1[i] -= lr * gW1[i];
+  for (let i = 0; i < gW2.length; i++) B.W2[i] -= lr * gW2[i];
+  for (let j = 0; j < H; j++) { B.b1[j] -= lr * gb1[j]; B.b2[j] -= lr * gb2[j]; Hd.w[j] -= lr * gw[j]; }
+  Hd.b -= lr * gb;
+}
+function accuracy(B, Hd, data) { let c = 0; for (let i = 0; i < data.n; i++) if ((forward(B, Hd, data.X, i * D) > 0 ? 1 : 0) === data.y[i]) c++; return c / data.n; }
+function shuffle(n, rng) {
+  const idx = new Int32Array(n); for (let i = 0; i < n; i++) idx[i] = i;
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
+  return idx;
+}
+function pretrain(T) {
+  const data = makeData(T, 1500, 11, 'A', 0), B = newBody(3), Hd = newHead(5, 0.3), r = mulberry32(13), bs = 16;
+  for (let ep = 0; ep < 12; ep++) { const idx = shuffle(data.n, r); for (let s = 0; s + bs <= data.n; s += bs) sgdStep(B, Hd, data.X, data.y, idx, s, bs, 0.15); }
+  return B;
+}
+// One fine-tuning run: weight seed sets the new output layer, order seed sets the shuffle.
+function fineTune(pre, train, val, wiSeed, doSeed, cfg) {
+  const B = cloneBody(pre), Hd = newHead(1000 + wiSeed, cfg.headScale), r = mulberry32(5000 + doSeed);
+  const bs = cfg.bs, stepsPerEp = Math.floor(train.n / bs), total = stepsPerEp * cfg.epochs, evalEvery = Math.max(1, Math.round(total / cfg.checkpoints));
+  const curve = [accuracy(B, Hd, val)]; let step = 0; if (cfg.onCk) cfg.onCk(B, Hd);   // onCk: optional weight snapshots for the picture
+  for (let ep = 0; ep < cfg.epochs; ep++) {
+    const idx = shuffle(train.n, r);
+    for (let s = 0; s < stepsPerEp; s++) {
+      sgdStep(B, Hd, train.X, train.y, idx, s * bs, bs, cfg.lr * (1 - step / total)); step++;
+      if (step % evalEvery === 0 || step === total) { curve.push(accuracy(B, Hd, val)); if (cfg.onCk) cfg.onCk(B, Hd); }
+    }
+  }
+  return curve;
+}
+function expectedMax(vals, n) {
+  const v = vals.slice().sort((a, b) => a - b), M = v.length; let e = 0;
+  for (let i = 0; i < M; i++) e += v[i] * (Math.pow((i + 1) / M, n) - Math.pow(i / M, n));
+  return e;
+}
+function makeWorld() {
+  const T = makeTeacher();
+  return { pre: pretrain(T), val: makeData(T, 400, 99, 'B', 0), train: makeData(T, 64, 21, 'B', 0.05), order1: Array.from(shuffle(N, mulberry32(42))) };
+}
+const wiOf = i => Math.floor(i / K), doOf = i => i % K;
+function runCurve(Wd, i) { return fineTune(Wd.pre, Wd.train, Wd.val, wiOf(i), doOf(i), CFG); }
+function computeStats(curves, order1) {
+  const fin = curves.map(c => c[c.length - 1]), lo = Math.min(...fin), hi = Math.max(...fin), L = curves[0].length;
+  const spread = ids => { const v = ids.map(i => fin[i]); return (Math.max(...v) - Math.min(...v)) * 100; };
+  const ck = curves.map(c => c[STOP]);
+  const kept = new Set(fin.map((_, i) => i).sort((a, b) => ck[b] - ck[a] || a - b).slice(0, KEEP));
+  let bestCut = 0; kept.forEach(i => { if (fin[i] > bestCut) bestCut = fin[i]; });
+  const p = STOP / (L - 1);
+  return {
+    fin, lo, hi, L, best: fin.indexOf(hi), first: fin[order1[0]], E: n => expectedMax(fin, n),
+    g1: spread(Array.from({ length: K }, (_, d) => d)), g2: spread(Array.from({ length: K }, (_, w) => w * K)),
+    kept, bestCut, cutCost: N * p + KEEP * (1 - p),
+  };
+}
+// Same hash in the page and in make-narration.mjs: audio/<hash>.mp3 is the clip for that exact line.
+function lineHash(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, '0'); }
+</script>
+
+<!-- lines: the narration script. Every subtitle is spoken. -->
+<script id="lines">
+function pct(v, d) { return (v * 100).toFixed(d === undefined ? 1 : d) + '%'; }
+function LINES(st) {
+  const climb = ((st.E(20) - st.E(1)) * 100).toFixed(1), swing = ((st.hi - st.lo) * 100).toFixed(1);
+  return {
+    hook: 'Here’s something strange about AI. Train the exact same model twice, and you can get very different results. Let me show you why.',
+    net: 'This is a neural network. A tiny one. Each line is a weight: a number the network adjusts as it learns.',
+    pre: 'This grey part stands in for a pretrained model, like BERT, which read billions of words of English before anyone gave it a specific job. That’s called pretraining.',
+    tune: 'Then we fine-tune it on a small, specific job, called a downstream task. Say, deciding whether two sentences mean the same thing. It gets a few practice examples, and a test at the end. That’s the setting of this paper.',
+    head: 'For the new job, we attach a new output layer. Its weights start out random. Blue is positive, red is negative. That’s the first roll of the dice.',
+    data: 'Now the practice examples. Sixty-four of them, fed in four at a time. Before training, their order is shuffled at random. That’s the second roll of the dice.',
+    seed: 'Both rolls are controlled by one number: the random seed. Change the seed, and both rolls come out differently.',
+    run1: 'So let’s train with seed one. The model goes through the examples six times, in a new shuffled order each time, and every weight gets nudged, the pretrained ones too. Then we test it on 400 examples it has never seen.',
+    score1: 'It gets ' + pct(st.first, 0) + ' accuracy: ' + Math.round(st.first * 400) + ' of the 400 test examples right. That orange dot is our result.',
+
+    change: 'Now here’s the experiment. Same network. Same examples. Same settings. We only change the seed.',
+    hundred: 'Let’s run a hundred of them.',
+    dist: 'Each dot is one complete training run. Most land in the middle, but some seeds are far luckier than others.',
+    swing: 'The worst run got ' + pct(st.lo) + '. The best got ' + pct(st.hi) + '. That’s a ' + swing + '-point gap, and the only thing we changed was the seed.',
+    paper1: 'And this isn’t just a toy. In 2020, researchers fine-tuned BERT 2,100 times across four tasks, and found the same thing. On the small datasets, some runs even failed completely.',
+
+    suspects: 'So which roll of the dice is doing this? The starting weights, or the order of the examples? The paper gave each roll its own seed, so it could change one at a time. Let’s do the same.',
+    lockW: 'First, we keep the starting weights the same every run, and only shuffle the order.',
+    g1: 'Just by reordering the same 64 examples, the accuracy moves ' + st.g1.toFixed(1) + ' points.',
+    lockO: 'Now the opposite. Keep the order the same, and only reroll the starting weights.',
+    g2: st.g2.toFixed(1) + ' points. So both of them matter.',
+    paper2: 'The paper found the same thing: on average, the two matter about equally. And some starting weights did well on all four tasks they tried.',
+
+    catch: 'Now, here’s why this is a problem. When a paper reports a result, you don’t see a hundred dots. You see one.',
+    lab1: 'Imagine a lab that tries one seed, and reports whatever it gets.',
+    lab5: 'A second lab tries five seeds, and reports only the best one.',
+    lab20: 'A third lab tries twenty.',
+    climb: 'Same model, same code, and the reported accuracy went up ' + climb + ' points, just from trying more seeds.',
+    real: 'And this actually happened. Here are published scores on a benchmark called MRPC.',
+    bert: 'After 625 seeds, BERT’s best run on this task scored above the published results of XLNet, RoBERTa and ALBERT: newer models that had been reported as better. The paper is careful to note that those models never got 625 tries.',
+
+    ab: 'So how do you know if a new method is actually better, or just luckier? Let’s compare two: method A and method B.',
+    abgap: 'A reports one try. B reports its best out of twenty. B looks ' + climb + ' points better. Sounds like a breakthrough, right?',
+    fair: 'But let’s give A twenty tries as well.',
+    tie: 'They’re identical. A and B were the same method all along. B just had more tries.',
+    fix: 'So the fix is simple. Report how many seeds you tried, and compare methods using the same number of tries.',
+    cheap: 'And if you can afford many tries, the paper has a cheaper trick: start lots of runs, and stop the unpromising ones early.',
+    end: 'Because one score is just one lottery ticket.',
+  };
+}
+</script>
+
+<script>
+(function () {
+  const S = { marks: [], total: 0, curves: [], tok: 0, paused: false, ended: false, scene: 0, ax: { shown: 0 }, started: false, ft: 0 };
+  const CANCEL = {};
+  const $ = id => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text !== undefined) e.textContent = text; return e; };
+  const tip = $('tip');
+  function tipOn(node, label) {
+    node.setAttribute('aria-label', label);
+    node.addEventListener('pointermove', e => { tip.textContent = label; tip.style.opacity = 1; tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + 12) + 'px'; tip.style.top = (e.clientY - 34) + 'px'; });
+    node.addEventListener('pointerleave', () => { tip.style.opacity = 0; });
+  }
+  function frame(host, h, m) {
+    host.textContent = '';
+    const w = Math.max(240, host.clientWidth || 480), svg = el('svg', { viewBox: '0 0 ' + w + ' ' + h, width: w, height: h, role: 'img' });
+    host.appendChild(svg);
+    return { svg, w, h, x0: m.l, x1: w - m.r, y0: h - m.b, y1: m.t };
+  }
+  const World = makeWorld(), order1 = World.order1;
+  let L = null;
+
+  // ---------- narration: ElevenLabs clip if audio/<hash>.mp3 exists, else the browser's voice ----------
+  // Every line has a fixed length on the timeline (the clip's length, or an estimate), so the film can be scrubbed like a video.
+  const V = { on: true, a: null, voice: null, clips: {} };
+  function pickVoice() {
+    if (!window.speechSynthesis) return;
+    const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+    const us = vs.filter(v => /en[-_]US/i.test(v.lang)), male = /\b(guy|andrew|brian|christopher|eric|roger|steffan|davis|tony|jason|david|mark|aaron|alex|fred|tom)\b/i;
+    V.voice = us.find(v => /natural/i.test(v.name) && male.test(v.name)) || us.find(v => male.test(v.name)) || us.find(v => /natural/i.test(v.name)) || us.find(v => /google us/i.test(v.name)) || us[0] || vs[0] || null;
+  }
+  if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+  function loadClips(lines) {
+    return Promise.all(lines.map(t => new Promise(res => {
+      const a = new Audio(); let fin = false;
+      const end = () => { if (!fin) { fin = true; res(); } };
+      a.preload = 'auto';
+      a.onloadedmetadata = () => { if (isFinite(a.duration) && a.duration > 0) V.clips[t] = { a, ms: a.duration * 1000 }; end(); };
+      a.onerror = end; setTimeout(end, 4000);
+      a.src = 'audio/' + lineHash(t) + '.mp3';
+    })));
+  }
+  const lineMs = t => V.clips[t] ? V.clips[t].ms + 150 : 450 + t.length * 72;
+  function voiceStop() {
+    if (V.a) { V.a.pause(); V.a = null; }
+    if (window.speechSynthesis) speechSynthesis.cancel();
+  }
+  function voiceStart(text, offMs) {
+    voiceStop(); if (!V.on) return;
+    const c = V.clips[text];
+    if (c) {
+      const a = c.a; V.a = a;
+      try { a.currentTime = (offMs || 0) / 1000; } catch (e) {}
+      a.play().then(() => { if (S.paused) a.pause(); }).catch(() => {});
+      return;
+    }
+    if ((offMs || 0) > 400 || !window.speechSynthesis) return;   // the browser voice cannot start mid-line
+    const u = new SpeechSynthesisUtterance(text); u.rate = 1.08; if (V.voice) u.voice = V.voice;
+    speechSynthesis.speak(u); if (S.paused) speechSynthesis.pause();
+  }
+  function voicePause(p) {
+    if (V.a) { if (p) V.a.pause(); else V.a.play().catch(() => {}); }
+    else if (window.speechSynthesis) { if (p) speechSynthesis.pause(); else speechSynthesis.resume(); }
+  }
+
+  // ---------- the explainer: the full model, with the seed's two dice inside it ----------
+  //   training order (64 examples, fed 4 at a time) -> pretrained layers -> new output layer (starting weights) -> score
+  //   the seed sits above and branches into the two random parts.
+  const ex = (() => {
+    const st = { lock: null, show: new Set(), focus: null, seed: null, wi: null, do: null, score: '', curve: null, u: 0, cur: null, ep: 0, snap: null };
+    const NEX = World.train.n, COLS = 16, ROWS = NEX / COLS, orders = {};
+    // the real order of run d in each pass (epoch): the same shuffle sequence fineTune draws
+    const orderOf = (d, ep) => { if (!orders[d]) { const r = mulberry32(5000 + d); orders[d] = Array.from({ length: CFG.epochs }, () => Array.from(shuffle(NEX, r))); } return orders[d][ep || 0]; };
+    // the real weights of run i at each checkpoint (pretrained layers and output layer), recomputed on demand
+    const snapsOf = {}, snaps = i => snapsOf[i] || (snapsOf[i] = (() => { const a = []; fineTune(World.pre, World.train, World.val, wiOf(i), doOf(i), Object.assign({}, CFG, { onCk: (B, Hd) => a.push({ W1: B.W1.slice(), W2: B.W2.slice(), w: Hd.w.slice() }) })); return a; })());
+    const op1 = v => (0.06 + Math.min(0.45, Math.abs(v) * 0.3)).toFixed(2), op2 = v => (0.04 + Math.min(0.4, Math.abs(v) * 0.3)).toFixed(2);
+    const cardColor = k => 'hsl(212 78% ' + (26 + 54 * k / (NEX - 1)).toFixed(1) + '%)';
+    const PARTS = ['seed', 'o', 'body', 'w', 'score'];
+    let R = {};
+    function build() {
+      const host = $('ex'); host.textContent = ''; R = {};
+      const Wd = Math.max(640, host.clientWidth || 900), Hh = Math.max(200, S.topH || 260);
+      const svg = el('svg', { class: 'ex still', viewBox: '0 0 ' + Wd + ' ' + Hh, width: Wd, height: Hh, role: 'img', 'aria-label': 'The model: training examples in a random order feed a pretrained network whose new output layer starts from random weights; the result is a score. One seed sets both the order and the starting weights.' });
+      host.appendChild(svg); R.svg = svg;
+      const sr = clamp(Hh * 0.1, 18, 26), sy = sr + 2;
+      const my0 = Math.max(sy + sr + 52, Hh * 0.34), my1 = Hh - 4, cy = (my0 + my1) / 2, labY = my0 - 12;
+      const gW = clamp(Wd * 0.24, 190, 290), scW = clamp(Wd * 0.15, 120, 170), sc0 = Wd - scW;
+      const nx0 = gW + 60, nx1 = sc0 - 56;
+      const lx = [nx0, nx0 + (nx1 - nx0) * 0.28, nx0 + (nx1 - nx0) * 0.56, nx1];
+      const part = n => { const g = el('g', { class: 'part' }); svg.appendChild(g); R[n] = g; return g; };
+      const lab = (g, x, t, a) => { const e = el('text', { class: 'lab', x, y: labY, 'text-anchor': a || 'start' }, t); g.appendChild(e); return e; };
+      const arrow = (g, x0, x1) => g.appendChild(el('path', { class: 'link', d: 'M' + x0 + ' ' + cy + 'H' + x1 + 'M' + (x1 - 6) + ' ' + (cy - 4) + 'L' + x1 + ' ' + cy + 'L' + (x1 - 6) + ' ' + (cy + 4) }));
+
+      // training order: 64 examples coloured by identity, laid out in the order they are fed in (row by row)
+      const go = part('o'); R.labO = lab(go, 0, 'training order');
+      const cs = gW / COLS, ch = Math.min((my1 - my0) / ROWS, cs * 2.2), gy0 = cy - ROWS * ch / 2;
+      R.g = { cs, ch, gy0 };
+      R.cards = Array.from({ length: NEX }, (_, k) => {
+        const r = el('rect', { class: 'card', x: 0, y: 0, width: Math.max(2, cs - 1.6), height: ch - 1.6, rx: 1.5, fill: cardColor(k) });
+        r.style.transitionDelay = ((k * 7 % 13) * 0.018).toFixed(3) + 's'; go.appendChild(r); return r;
+      });
+      R.cursor = el('rect', { class: 'cursor', x: -1.5, y: gy0 - 1.5, width: 4 * cs + 1.4, height: ch + 1.4, rx: 2.5, opacity: 0 }); go.appendChild(R.cursor);
+      arrow(go, gW + 12, nx0 - 14);
+
+      // the network: pretrained layers (grey), new output layer (blue +, red -)
+      const ny0 = my0 + 2, ny1 = my1 - 2;
+      const ys = n => Array.from({ length: n }, (_, k) => n === 1 ? cy : n < H ? ny0 + (ny1 - ny0) * (k + 1) / (n + 1) : ny0 + (ny1 - ny0) * k / (n - 1));
+      const yin = ys(D), yh = ys(H), r = clamp((ny1 - ny0) / H / 2 - 0.8, 2, 5), ro = r * 2;
+      const gb = part('body'); R.labB = lab(gb, lx[0] - r, 'pretrained');
+      const B = World.pre;
+      R.l1 = []; R.l2 = [];
+      for (let j = 0; j < H; j++) for (let k = 0; k < D; k++) { const l = el('line', { class: 'pw', x1: lx[0], y1: yin[k], x2: lx[1], y2: yh[j], 'stroke-opacity': op1(B.W1[j * D + k]) }); R.l1.push(l); gb.appendChild(l); }
+      for (let j = 0; j < H; j++) for (let k = 0; k < H; k++) { const l = el('line', { class: 'pw', x1: lx[1], y1: yh[k], x2: lx[2], y2: yh[j], 'stroke-opacity': op2(B.W2[j * H + k]) }); R.l2.push(l); gb.appendChild(l); }
+      [[yin, 0], [yh, 1], [yh, 2]].forEach(([yy, c]) => yy.forEach(y => gb.appendChild(el('circle', { class: 'node', cx: lx[c], cy: y, r }))));
+      const gw = part('w'); R.labW = lab(gw, (lx[2] + lx[3]) / 2, 'starting weights', 'middle');
+      R.hw = yh.map(y => { const l = el('line', { class: 'hw', x1: lx[2] + r, y1: y, x2: lx[3] - ro, y2: cy }); gw.appendChild(l); return l; });
+      gw.appendChild(el('circle', { class: 'node outn', cx: lx[3], cy, r: ro }));
+      arrow(gw, lx[3] + ro + 8, sc0 - 8);
+
+      // score
+      const gs = part('score'); lab(gs, sc0 + scW / 2, 'accuracy', 'middle');
+      R.scoreTxt = el('text', { class: 'scoreno', x: sc0 + scW / 2, y: cy + 4, 'text-anchor': 'middle' }); gs.appendChild(R.scoreTxt);
+      R.cv = { x0: sc0 + 10, x1: Wd - 4, y0: Math.min(my1, cy + 62), y1: cy + 20 };
+      R.trace = el('path', { class: 'trace' }); gs.appendChild(R.trace);
+
+      // the seed, above the model, with one branch into each random part
+      const gd = part('seed'), sx = (gW / 2 + (lx[2] + lx[3]) / 2) / 2, ly = labY - 18;
+      const branch = x1 => 'M' + sx + ' ' + (sy + sr + 2) + 'C' + sx + ' ' + (ly + 4) + ' ' + x1 + ' ' + (sy + sr + 10) + ' ' + x1 + ' ' + ly;
+      [gW / 2, (lx[2] + lx[3]) / 2].forEach((x1, k) => {
+        gd.appendChild(el('path', { class: 'link seedl', d: branch(x1) }));
+        const p = el('path', { class: 'pulse', d: branch(x1), pathLength: 1 }); gd.appendChild(p); R[k ? 'pw' : 'po'] = p;
+      });
+      R.seedG = el('g', { class: 'seedg' }); gd.appendChild(R.seedG);
+      const pw = 128; R.seedG.appendChild(el('rect', { class: 'seedc', x: sx - pw / 2, y: sy - sr, width: pw, height: 2 * sr, rx: sr }));
+      R.seedG.appendChild(el('text', { class: 'lab', x: sx - 12, y: sy + 5, 'text-anchor': 'end' }, 'seed ='));
+      R.seedTxt = el('text', { class: 'seedno', x: sx - 4, y: sy + 7 }); R.seedG.appendChild(R.seedTxt);
+
+      apply();
+      requestAnimationFrame(() => requestAnimationFrame(() => svg.classList.remove('still')));
+    }
+    function paintParts() {
+      if (!R.svg) return;
+      PARTS.forEach(n => { R[n].classList.toggle('in', st.show.has(n)); R[n].classList.toggle('dim', !!st.focus && !st.focus.includes(n)); R[n].classList.toggle('locked', st.lock === n); });
+      R.labO.textContent = st.lock === 'o' ? 'training order · same every run' : st.cur !== null ? 'training order · pass ' + (st.ep + 1) + ' of ' + CFG.epochs : 'training order';
+      R.labW.textContent = st.lock === 'w' ? 'starting weights · same every run' : st.snap ? 'output layer · training' : 'starting weights';
+      R.labB.textContent = st.snap ? 'pretrained · also adjusting' : 'pretrained';
+    }
+    function paintHead() {
+      if (!R.hw) return;
+      const w = st.snap ? st.snap.w : st.wi === null ? null : newHead(1000 + st.wi, CFG.headScale).w;
+      R.hw.forEach((l, j) => {
+        l.setAttribute('class', 'hw' + (w ? (w[j] >= 0 ? ' pos' : ' neg') : ''));
+        l.style.strokeWidth = w ? (0.6 + Math.min(3.6, Math.abs(w[j]) * 0.7)).toFixed(2) : 1;
+      });
+    }
+    function paintBody() {
+      if (!R.l1) return;
+      const b = st.snap || World.pre;
+      R.l1.forEach((l, k) => l.setAttribute('stroke-opacity', op1(b.W1[k])));
+      R.l2.forEach((l, k) => l.setAttribute('stroke-opacity', op2(b.W2[k])));
+    }
+    function paintCards() {
+      if (!R.cards) return;
+      const pos = new Array(NEX), g = R.g;
+      if (st.do === null) for (let k = 0; k < NEX; k++) pos[k] = k; else orderOf(st.do, st.ep).forEach((k, p) => { pos[k] = p; });
+      R.cards.forEach((c, k) => { c.style.transform = 'translate(' + ((pos[k] % COLS) * g.cs).toFixed(2) + 'px,' + (g.gy0 + Math.floor(pos[k] / COLS) * g.ch).toFixed(2) + 'px)'; });
+    }
+    function paintCurve() {
+      if (!R.trace) return;
+      const c = st.curve, v = R.cv;
+      if (!c || st.u <= 0) { R.trace.setAttribute('d', ''); return; }
+      const X = k => v.x0 + k / (c.length - 1) * (v.x1 - v.x0), Y = a => v.y0 - (a - 0.3) / 0.6 * (v.y0 - v.y1), m = st.u * (c.length - 1);
+      let d = 'M' + X(0).toFixed(1) + ' ' + Y(c[0]).toFixed(1);
+      for (let k = 1; k <= Math.floor(m); k++) d += 'L' + X(k).toFixed(1) + ' ' + Y(c[k]).toFixed(1);
+      const f = m - Math.floor(m), k0 = Math.floor(m);
+      if (f > 0 && k0 + 1 < c.length) d += 'L' + X(k0 + f).toFixed(1) + ' ' + Y(c[k0] + (c[k0 + 1] - c[k0]) * f).toFixed(1);
+      R.trace.setAttribute('d', d);
+    }
+    function paintCursor() {
+      if (!R.cursor) return;
+      if (st.cur === null) { R.cursor.setAttribute('opacity', 0); return; }
+      const s = Math.min(NEX / 4 - 1, Math.floor(st.cur * NEX / 4));   // batch of 4 within the current pass
+      R.cursor.setAttribute('opacity', 1); R.cursor.setAttribute('transform', 'translate(' + ((s % 4) * 4 * R.g.cs).toFixed(2) + ' ' + (Math.floor(s / 4) * R.g.ch).toFixed(2) + ')');
+    }
+    function apply() {
+      paintParts(); paintBody(); paintHead(); paintCards(); paintCurve(); paintCursor();
+      R.seedTxt.textContent = st.seed === null ? '' : st.seed; 
+      R.scoreTxt.textContent = st.score;
+    }
+    const kick = (node, cls) => { if (!node) return; node.classList.remove(cls); void R.svg.getBoundingClientRect(); node.classList.add(cls); };
+    return {
+      build, st,
+      reset() { Object.assign(st, { lock: null, focus: null, seed: null, wi: null, do: null, score: '', curve: null, u: 0, cur: null, ep: 0, snap: null }); if (R.svg) apply(); },
+      show(list) { st.show = new Set(list); paintParts(); },
+      focus(...n) { st.focus = n.length ? n : null; paintParts(); },
+      seed(n, anim) { st.seed = n; if (R.seedTxt) { R.seedTxt.textContent = n === null ? '' : n;  if (anim) kick(R.seedG, 'bump'); } },
+      lock(which) { st.lock = which; paintParts(); },
+      weights(w) { st.wi = w; st.snap = null; paintBody(); paintHead(); paintParts(); },
+      order(d) { st.do = d; st.ep = 0; paintCards(); },
+      pulse(which) { if (which !== 'o') kick(R.pw, 'go'); if (which !== 'w') kick(R.po, 'go'); },
+            score(t) { st.score = t; if (R.scoreTxt) R.scoreTxt.textContent = t; },
+      curve(c, u) { st.curve = c; st.u = u; paintCurve(); },
+      cursor(u) { st.cur = u; paintCursor(); },
+      // u in [0,1] across the whole run: which pass, which batch, and the real weights at that point
+      progress(i, u) {
+        if (u === null) { st.cur = null; paintCursor(); paintParts(); return; }
+        const ep = Math.min(CFG.epochs - 1, Math.floor(u * CFG.epochs)), sn = snaps(i);
+        st.cur = Math.min(1, u * CFG.epochs - ep); st.snap = sn[Math.round(u * (sn.length - 1))];
+        if (ep !== st.ep) { st.ep = ep; paintCards(); }
+        paintCursor(); paintBody(); paintHead(); paintParts();
+      },
+      quick(on) { if (R.svg) R.svg.classList.toggle('quick', on); },
+    };
+  })();
+  const ALL = ['seed', 'o', 'body', 'w', 'score'];
+
+  // ---------- the score axis: one dot per run ----------
+  const LO = 0.56, HI = 0.86;
+  function renderAxis(dropLast) {
+    const A = S.ax, F = frame($('axis'), S.axH || 260, { l: 12, r: 12, t: 62, b: 50 });
+    const bw = 0.0075, nb = Math.round((HI - LO) / bw), X = v => F.x0 + (v - LO) / (HI - LO) * (F.x1 - F.x0), binW = (F.x1 - F.x0) / nb;
+    const ids = order1.slice(0, A.shown), cnt = new Array(nb).fill(0), bin = v => clamp(Math.floor((v - LO) / bw + 1e-9), 0, nb - 1);
+    ids.forEach(i => cnt[bin(S.fin[i])]++);
+    const cap = Math.max(8, ...cnt), r = Math.max(2, Math.min(11, binW / 2 - 0.5, (F.y0 - F.y1) / (2 * cap)));
+    F.svg.appendChild(el('line', { class: 'gl', x1: F.x0, x2: F.x1, y1: F.y0, y2: F.y0 }));
+    [0.6, 0.7, 0.8].forEach(v => F.svg.appendChild(el('text', { x: X(v), y: F.y0 + 16, 'text-anchor': 'middle' }, pct(v, 0))));
+    F.svg.appendChild(el('text', { class: 'lab', x: F.x1, y: F.y0 + 16, 'text-anchor': 'end' }, 'test accuracy'));
+    const lvl = new Array(nb).fill(0);
+    ids.forEach((i, k) => {
+      const b = bin(S.fin[i]), cx = F.x0 + (b + 0.5) * binW, cy = F.y0 - r - 1 - lvl[b]++ * 2 * r;
+      let cls = 'drop';
+      if (A.lit) cls += A.lit.has(i) ? ' lit' : ' pop';
+      if (A.best === i || (A.markLast && k === ids.length - 1)) cls += ' last';
+      if (dropLast && k === ids.length - 1) cls += ' anim';
+      const c = el('circle', { class: cls, cx, cy, r: r - 0.5 }); tipOn(c, 'seed ' + (k + 1) + ': ' + pct(S.fin[i])); F.svg.appendChild(c);
+    });
+    if (A.bracket) {
+      const a = A.bracket.a, b = A.bracket.b, y = F.y0 + 28;
+      F.svg.appendChild(el('path', { class: 'span', d: 'M' + X(a) + ' ' + (y - 5) + 'V' + y + 'H' + X(b) + 'V' + (y - 5) }));
+      F.svg.appendChild(el('text', { class: 'lbl', x: (X(a) + X(b)) / 2, y: y + 16, 'text-anchor': 'middle' }, A.bracket.label));
+    }
+    (A.flags || []).forEach(f => {
+      const x = X(f.v), ty = 14 + f.row * 18;
+      F.svg.appendChild(el('line', { class: 'flag' + (f.b ? ' b' : ''), x1: x, x2: x, y1: ty + 5, y2: F.y0, opacity: f.o === undefined ? 1 : f.o }));
+      F.svg.appendChild(el('text', { class: 'fl' + (f.b ? ' b' : ''), x: clamp(x, F.x0 + 50, F.x1 - 50), y: ty, 'text-anchor': 'middle', opacity: f.o === undefined ? 1 : f.o }, f.label));
+    });
+    F.svg.setAttribute('aria-label', 'Test accuracy of ' + A.shown + ' training runs that differ only in their seed');
+  }
+
+  // ---------- the real-world chart: MRPC scores from the paper ----------
+  const MRPC = [['XLNet, reported', 89.2], ['RoBERTa, reported', 90.9], ['ALBERT, reported', 90.9], ['BERT, best of 625 seeds', 91.4]];
+  function drawMrpc(upTo) {
+    S.topDraw = () => drawMrpc(upTo);
+    const F = frame($('wide'), S.topH || 220, { l: 210, r: 54, t: 30, b: 22 }), lo = 88.5, hi = 92, X = v => F.x0 + (v - lo) / (hi - lo) * (F.x1 - F.x0);
+    F.svg.appendChild(el('text', { class: 'lab', x: 0, y: 12 }, 'MRPC score (average of accuracy and F1), from the paper'));
+    [89, 90, 91, 92].forEach(v => { F.svg.appendChild(el('line', { class: 'gl', x1: X(v), x2: X(v), y1: F.y1, y2: F.y0 })); F.svg.appendChild(el('text', { x: X(v), y: F.y0 + 16, 'text-anchor': 'middle' }, v)); });
+    const step = (F.y0 - F.y1) / MRPC.length;
+    MRPC.forEach((m, i) => {
+      if (i >= upTo) return;
+      const y = F.y1 + step * (i + 0.5), top = i === MRPC.length - 1;
+      F.svg.appendChild(el('text', { class: 'row' + (top ? ' hi' : ''), x: F.x0 - 14, y: y + 5, 'text-anchor': 'end' }, m[0]));
+      F.svg.appendChild(el('circle', { class: top ? 'hl' : 'dot', cx: X(m[1]), cy: y, r: top ? 7 : 5.5 }));
+      F.svg.appendChild(el('text', { class: 'lbl', x: X(m[1]) + 13, y: y + 4 }, m[1].toFixed(1)));
+    });
+    F.svg.setAttribute('aria-label', 'MRPC validation scores from the paper: BERT best of 625 seeds, 91.4, above XLNet 89.2, RoBERTa 90.9 and ALBERT 90.9');
+  }
+
+  // ---------- layout: everything fits one screen ----------
+  function fit() {
+    const top = $('top'), bot = $('bottom'), st = $('stage');
+    let avail = 520;
+    if (window.innerWidth > 860) {
+      const cs = getComputedStyle(st), gap = parseFloat(cs.rowGap) || 10;
+      const kids = [...st.children].filter(c => c.id !== 'curtain');
+      let used = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + gap * (kids.length - 1);
+      kids.forEach(c => { if (c !== top && c !== bot) used += c.offsetHeight; });
+      avail = Math.max(340, st.clientHeight - used);
+    }
+    const topH = Math.round(clamp(avail * 0.5, 170, 320));
+    top.style.height = topH + 'px'; bot.style.height = (avail - topH) + 'px';
+    S.topH = topH - 4; S.axH = avail - topH;
+  }
+  function zone(top) {
+    S.topKind = top; S.topDraw = null;
+    $('ex').hidden = top !== 'ex'; $('wide').hidden = top === 'ex';
+    if (top !== 'ex') $('wide').textContent = '';
+    fit(); if (top === 'ex') ex.build(); renderAxis();
+  }
+  function redraw() { fit(); if (S.topKind === 'ex') ex.build(); else if (S.topDraw) S.topDraw(); renderAxis(); }
+  function progress(sc, frac) { if (!frac) S.marks[sc] = S.ft; S.scene = sc; }
+  let capT;
+  function caption(text, instant) {
+    const c = $('cap'); clearTimeout(capT);
+    if (instant) { c.textContent = text; c.classList.remove('out'); return; }
+    c.classList.add('out'); capT = setTimeout(() => { c.textContent = text; c.classList.remove('out'); }, 160);
+  }
+  // subtitles: long lines are shown a sentence or two at a time, timed by their share of the spoken line
+  function chunks(text) {
+    const out = []; let cur = '';
+    text.split(/(?<=[.?!:])\s+/).forEach(s => { if (cur && (cur + ' ' + s).length > 105) { out.push(cur); cur = s; } else cur = cur ? cur + ' ' + s : s; });
+    if (cur) out.push(cur); return out;
+  }
+  function setSub(text, at, dur, instant) {
+    const parts = chunks(text), total = parts.reduce((a, p) => a + p.length, 0); let acc = 0;
+    S.sub = { parts, at, dur, i: 0, ends: parts.map(p => (acc += p.length) / total) };
+    caption(parts[0], instant);
+  }
+  function subTick() {
+    const s = S.sub; if (!s || s.parts.length < 2) return;
+    const f = (S.ft - s.at) / s.dur; let i = s.ends.findIndex(e => f < e); if (i < 0) i = s.parts.length - 1;
+    if (i !== s.i) { s.i = i; caption(s.parts[i], $('stage').classList.contains('seeking')); }
+  }
+  const look = where => { $('top').classList.toggle('dim', where === 'axis'); $('axis').classList.toggle('dim', where === 'top'); };
+  function methods(a, b) {
+    S.topDraw = () => methods(a, b);
+    $('wide').innerHTML = '<div class="methods"><div><b>Method A</b><span>' + a + (a === 1 ? ' try' : ' tries') + '</span></div><div class="b"><b>Method B</b><span>' + b + ' tries</span></div></div>';
+  }
+  // put the explainer in the state "seed n has run" without animation
+  function showRun(i, n) { ex.seed(n); ex.weights(wiOf(i)); ex.order(doOf(i)); ex.curve(S.curves[i], 1); ex.score(pct(S.fin[i])); }
+
+  // ---------- the film: one script on a fixed timeline ----------
+  // Seeking to time T replays the script from the start with every wait skipped (no motion, no sound) until the clock reaches T,
+  // then plays normally from there. Everything is deterministic, so the picture at T is always the same.
+  async function film(T, tok) {
+    S.ft = 0; let live = false, line = null, lineAt = 0, lineDur = 0;
+    $('stage').classList.add('seeking');
+    const check = () => { if (tok !== S.tok) throw CANCEL; };
+    const goLive = () => {
+      if (live) return; live = true; $('stage').classList.remove('seeking');
+      if (line && S.ft - lineAt < lineDur) voiceStart(line, S.ft - lineAt);
+    };
+    const W = async ms => {
+      check();
+      if (!live) { if (S.ft + ms < T) { S.ft += ms; return; } const skip = Math.max(0, T - S.ft); S.ft += skip; ms -= skip; goLive(); }
+      let left = ms, last = performance.now();
+      while (left > 0) {
+        await new Promise(r => setTimeout(r, Math.min(40, left))); check();
+        const now = performance.now(); if (!S.paused) { const d = Math.min(left, now - last); left -= d; S.ft += d; } last = now;
+      }
+    };
+    const tween = async (ms, fn) => {
+      check(); let e = 0;
+      if (!live) { if (S.ft + ms < T) { S.ft += ms; fn(1); return; } e = Math.max(0, T - S.ft); S.ft += e; goLive(); fn(e / ms); }
+      let last = performance.now();
+      while (e < ms) {
+        await new Promise(r => requestAnimationFrame(r)); check();
+        const now = performance.now(); if (!S.paused) { const d = Math.min(ms - e, now - last); e += d; S.ft += d; } last = now; fn(Math.min(1, e / ms));
+      }
+    };
+    // cue: subtitle + voice, picture keeps moving. done: wait for the line to finish. say: both.
+    const quiet = async () => { const left = lineAt + lineDur - S.ft; if (line && left > 0) await W(left); };
+    const cue = async text => { await quiet(); setSub(text, S.ft, lineMs(text), !live); line = text; lineAt = S.ft; lineDur = lineMs(text); if (live) voiceStart(text, 0); };
+    const done = async hold => { await quiet(); await W(hold || 0); };
+    const say = async (text, hold) => { await cue(text); await done(hold); };
+    const train = async (i, ms) => {
+      const fast = ms / CFG.epochs < 900; if (fast) ex.quick(true);
+      await tween(ms, u => { ex.progress(i, u); ex.curve(S.curves[i], u); });
+      ex.progress(i, null); if (fast) ex.quick(false);
+    };
+    const run = async (n, ms) => {      // seed n: roll both dice, train, drop the dot
+      const i = order1[n - 1];
+      ex.seed(n, live); if (live && ms) ex.pulse(); ex.weights(wiOf(i)); ex.order(doOf(i)); ex.score(''); ex.curve(null, 0);
+      if (ms) { await W(ms * 0.45); await train(i, ms * 0.5); } else ex.curve(S.curves[i], 1);
+      ex.score(pct(S.fin[i])); S.ax.shown = n; renderAxis(live);
+    };
+    const e1 = S.E(1), e20 = S.E(20), climb = '+' + ((e20 - e1) * 100).toFixed(1) + ' points';
+    const flagsCatch = () => [{ v: e1, label: '1 seed', row: 1 }, { v: e20, label: 'best of 20', b: true, row: 0 }];
+
+    // ----- 1 · Meet the seed: build the model piece by piece -----
+    progress(0, 0); ex.reset(); ex.show([]); S.ax = { shown: 0 }; zone('ex'); look(null);
+    await cue(L.hook); await W(1500); S.ax.shown = 1; renderAxis(live); await W(1200); S.ax.shown = 2; renderAxis(live); await done(300);
+    ex.show(['body']); await say(L.net);
+    await say(L.pre, 200);
+    ex.show(['body', 'o', 'score']); ex.focus('o', 'score'); await say(L.tune, 300);
+    ex.show(['body', 'o', 'w', 'score']); ex.focus('w'); await cue(L.head); await W(500); ex.weights(wiOf(order1[0])); await done(200);
+    ex.focus('o'); await cue(L.data); await W(1800); ex.order(doOf(order1[0])); await done(300);
+    ex.show(ALL); ex.focus('seed', 'w', 'o'); ex.seed(1, live); await cue(L.seed); await W(400); if (live) ex.pulse(); await done(300);
+    ex.show(ALL); ex.focus(); await cue(L.run1); await W(600); await train(order1[0], 7200); await done(100);
+    ex.score(pct(S.fin[order1[0]])); S.ax.best = order1[0]; renderAxis(); look('axis');
+    await say(L.score1, 400); look(null);
+
+    // ----- 2 · The distribution: take the time to watch it form -----
+    progress(1, 0); S.ax = { shown: 2, markLast: true }; look(null);
+    await cue(L.change);
+    for (let n = 2; n <= 6; n++) { await run(n, 1100); await W(250); }
+    await done(200);
+    await cue(L.hundred);
+    ex.quick(true);
+    for (let n = 7; n <= 20; n++) { await run(n, 0); await W(260); }
+    for (let n = 21; n <= N; n++) { await run(n, 0); await W(60); }
+    ex.quick(false); S.ax.markLast = false; renderAxis();
+    await done(400);
+    look('axis'); await say(L.dist, 500);
+    S.ax.bracket = { a: S.lo, b: S.hi, label: ((S.hi - S.lo) * 100).toFixed(1) + ' points' }; renderAxis();
+    await say(L.swing, 600);
+    await say(L.paper1, 300); look(null);
+
+    // ----- 3 · Two suspects: lock one roll, change the other -----
+    progress(2, 0); zone('ex'); ex.show(['body', 'w', 'o', 'score']); ex.focus(); ex.lock(null);
+    showRun(0, 1); ex.score(''); ex.curve(null, 0); S.ax = { shown: N }; renderAxis(); look(null);
+    ex.focus('w', 'o'); await say(L.suspects); ex.focus();
+    const lane = async (ids, step) => {
+      S.ax = { shown: N, lit: new Set() }; renderAxis();
+      for (const i of ids) {
+        step(i); ex.score(''); ex.curve(null, 0); await W(420);
+        await train(i, 420); ex.score(pct(S.fin[i])); S.ax.lit.add(i); renderAxis(); await W(260);
+      }
+      const vs = ids.map(i => S.fin[i]), a = Math.min(...vs), b = Math.max(...vs);
+      S.ax.bracket = { a, b, label: ((b - a) * 100).toFixed(1) + ' points' }; renderAxis();
+    };
+    ex.weights(0); ex.order(0); ex.lock('w');
+    await cue(L.lockW); await W(600);
+    await lane(Array.from({ length: K }, (_, d) => d), i => ex.order(doOf(i)));
+    await done(200); look('axis'); await say(L.g1, 400); look(null);
+    ex.order(0); ex.lock('o');
+    await cue(L.lockO); await W(600);
+    await lane(Array.from({ length: K }, (_, w) => w * K), i => ex.weights(wiOf(i)));
+    await done(200); look('axis'); await say(L.g2, 400); look(null);
+    ex.lock(null); await say(L.paper2, 300);
+
+    // ----- 4 · The catch: nobody reports a hundred dots -----
+    progress(3, 0); ex.show(ALL); look('axis');
+    S.ax = { shown: N, lit: new Set(), flags: [] }; renderAxis();
+    await say(L.catch, 200); look(null);
+    const rng = mulberry32(2020), tryN = async (n, row, label, text) => {
+      await cue(text); await W(700);
+      for (let r = 0; r < 6; r++) {
+        const pick = Array.from(shuffle(N, rng)).slice(0, n); let best = pick[0]; pick.forEach(i => { if (S.fin[i] > S.fin[best]) best = i; });
+        S.ax.lit = new Set(pick); S.ax.best = best; showRun(best, order1.indexOf(best) + 1); renderAxis(); await W(r < 2 ? 700 : 300);
+      }
+      S.ax.lit = new Set(); S.ax.best = undefined;
+      S.ax.flags.push({ v: S.E(n), label, b: n > 1, row }); renderAxis(); await done(400);
+    };
+    await tryN(1, 2, '1 seed', L.lab1);
+    await tryN(5, 1, 'best of 5', L.lab5);
+    await tryN(20, 0, 'best of 20', L.lab20);
+    S.ax.bracket = { a: e1, b: e20, label: climb }; renderAxis(); look('axis');
+    await say(L.climb, 600); look(null);
+    zone('mrpc'); drawMrpc(0); await cue(L.real); await W(1400);
+    for (let k = 1; k <= 3; k++) { drawMrpc(k); await W(500); }
+    await done(200); await cue(L.bert); await W(2500); drawMrpc(4); await done(800);
+
+    // ----- 5 · The honest fix: method A vs method B -----
+    progress(4, 0); zone('methods'); methods(1, 20); look(null);
+    const flagsAB = v => [{ v, label: 'Method A', row: 1 }, { v: e20, label: 'Method B', b: true, row: 0 }];
+    S.ax = { shown: N, lit: new Set(), flags: flagsAB(e1) }; renderAxis();
+    await say(L.ab, 200);
+    S.ax.bracket = { a: e1, b: e20, label: 'B wins by ' + ((e20 - e1) * 100).toFixed(1) + ' points?' }; renderAxis();
+    await say(L.abgap, 500);
+    await cue(L.fair); await W(900); methods(20, 20); S.ax.bracket = null;
+    await tween(1400, u => { S.ax.flags = flagsAB(e1 + (e20 - e1) * u); renderAxis(); });
+    S.ax.bracket = { a: e20, b: e20, label: 'identical' }; renderAxis(); await done(300);
+    await say(L.tie, 600);
+    await say(L.fix, 800);
+    await say(L.cheap, 500);
+    S.ax = { shown: N }; renderAxis(); await say(L.end, 600);
+    goLive(); S.ended = true; $('pp').textContent = 'Replay';
+  }
+
+  // ---------- transport: play / pause / seek ----------
+  function play(t) {
+    voiceStop(); $('top').classList.remove('dim'); $('axis').classList.remove('dim');
+    const tok = ++S.tok; S.ended = false; $('pp').textContent = S.paused ? 'Play' : 'Pause';
+    film(clamp(t || 0, 0, S.total || Infinity), tok).catch(e => { if (e !== CANCEL) throw e; });
+  }
+  const seekTo = t => { if (!S.started) return; if (S.total && t >= S.total - 30) S.paused = false; play(t); };
+  $('pp').addEventListener('click', () => {
+    if (!S.started) return;
+    if (S.ended) { S.paused = false; return play(0); }
+    S.paused = !S.paused; $('pp').textContent = S.paused ? 'Play' : 'Pause'; voicePause(S.paused);
+  });
+  $('voice').addEventListener('click', () => {
+    V.on = !V.on; if (!V.on) voiceStop(); else if (S.started && !S.ended) play(S.ft);
+    $('voice').textContent = V.on ? 'Sound on' : 'Sound off'; $('voice').setAttribute('aria-pressed', V.on);
+  });
+  const fmt = ms => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  const bar = $('seek');
+  let drag = null;
+  const posT = e => { const b = bar.getBoundingClientRect(); return clamp((e.clientX - b.left) / b.width, 0, 1) * S.total; };
+  bar.addEventListener('pointerdown', e => { if (!S.started || !S.total) return; bar.setPointerCapture(e.pointerId); drag = posT(e); });
+  bar.addEventListener('pointermove', e => { if (drag !== null) drag = posT(e); });
+  bar.addEventListener('pointerup', () => { if (drag === null) return; const t = drag; drag = null; seekTo(t); });
+  bar.addEventListener('pointercancel', () => { drag = null; });
+  (function tick() {
+    subTick();
+    if (S.total) {
+      const t = drag !== null ? drag : Math.min(S.ft, S.total), f = (t / S.total * 100).toFixed(2) + '%';
+      $('fill').style.width = f; $('knob').style.left = f;
+      $('time').textContent = fmt(t) + ' / ' + fmt(S.total);
+      bar.setAttribute('aria-valuenow', Math.round(t / 1000)); bar.setAttribute('aria-valuetext', fmt(t));
+    }
+    requestAnimationFrame(tick);
+  })();
+  document.addEventListener('keydown', e => {
+    if (!S.started) return;
+    if (e.key === ' ' && !e.target.matches('button, input')) { e.preventDefault(); $('pp').click(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); seekTo(S.ft + 5000); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); seekTo(S.ft - 5000); }
+    if (e.key === 'm') $('voice').click();
+  });
+  let rt; const later = () => { clearTimeout(rt); rt = setTimeout(redraw, 150); };
+  window.addEventListener('resize', later);
+  if (document.fonts) document.fonts.ready.then(() => { if (S.topKind) redraw(); });
+
+  // ---------- warm-up: train all 100 runs, measure the clips, lay out the timeline; then wait for a click (browsers need one before audio) ----------
+  zone('ex');
+  let i = 0;
+  (function chunk() {
+    const t0 = performance.now();
+    while (i < N && performance.now() - t0 < 25) { S.curves[i] = runCurve(World, i); i++; }
+    $('prep').textContent = 'Training 100 tiny networks in your browser… ' + i + '/100';
+    if (i < N) return setTimeout(chunk, 0);
+    Object.assign(S, computeStats(S.curves, order1)); L = LINES(S);
+    loadClips(Object.values(L)).then(async () => {
+      // a silent dry run measures the film and where each scene starts
+      const tok = ++S.tok; S.marks = [];
+      await film(Infinity, tok); S.total = S.ft; S.ended = false; $('pp').textContent = 'Pause';
+      $('ticks').innerHTML = S.marks.slice(1).map(m => '<i style="left:' + (m / S.total * 100).toFixed(2) + '%"></i>').join('');
+      bar.setAttribute('aria-valuemax', Math.round(S.total / 1000));
+      $('prep').textContent = '100 tiny networks, trained in your browser · ' + fmt(S.total);
+      const b = $('start'); b.disabled = false; b.textContent = '▶ Play'; b.focus();
+      // #auto[seconds]: start muted without a click (for previews and testing)
+      const m = location.hash.match(/^#auto(\d+)?$/);
+      if (m) { V.on = false; $('voice').textContent = 'Sound off'; $('curtain').hidden = true; S.started = true; play((+(m[1] || 0)) * 1000); }
+    });
+  })();
+  $('start').addEventListener('click', () => { $('curtain').hidden = true; S.started = true; pickVoice(); play(0); });
+})();
+</script>
+</body>
+</html>
