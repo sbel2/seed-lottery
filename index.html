@@ -382,24 +382,53 @@ function LINES(st) {
     V.voice = us.find(v => /natural/i.test(v.name) && male.test(v.name)) || us.find(v => male.test(v.name)) || us.find(v => /natural/i.test(v.name)) || us.find(v => /google us/i.test(v.name)) || us[0] || vs[0] || null;
   }
   if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-  function loadClips(lines) {
-    return Promise.all(lines.map(t => new Promise(res => {
-      const a = new Audio(); let fin = false;
-      const end = () => { if (!fin) { fin = true; res(); } };
-      a.preload = 'auto';
-      a.onloadedmetadata = () => { if (isFinite(a.duration) && a.duration > 0) V.clips[t] = { a, ms: a.duration * 1000 }; end(); };
-      a.onerror = end; setTimeout(end, 4000);
-      a.src = 'audio/' + lineHash(t) + '.mp3';
-    })));
+  // Clips play through Web Audio, trimmed to the speech itself (ElevenLabs pads each clip with up to 0.7 s of silence
+  // and sometimes a click at the very end). A line never cuts off the one before it; only seeking, pausing or muting stops sound.
+  const AC = window.AudioContext || window.webkitAudioContext, ctx = AC ? new AC() : null, playing = new Set();
+  function trimOf(buf) {
+    const d = buf.getChannelData(0), sr = buf.sampleRate, win = Math.round(sr * 0.01), rms = i => { let s = 0; for (let k = i; k < i + win; k++) s += d[k] * d[k]; return Math.sqrt(s / win); };
+    let a = 0; while (a < d.length - win && rms(a) < 0.006) a += win;
+    let b = d.length - Math.round(sr * 0.08) - win; while (b > a && rms(b) < 0.006) b -= win;
+    return { s0: Math.max(0, a / sr - 0.03), s1: Math.min(buf.duration, (b + win) / sr + 0.06) };
   }
-  const lineMs = t => V.clips[t] ? V.clips[t].ms + 150 : 450 + t.length * 72;
+  function loadClips(lines) {
+    return Promise.all(lines.map(async t => {
+      const src = 'audio/' + lineHash(t) + '.mp3';
+      try {
+        if (!ctx) throw 0;
+        const r = await fetch(src); if (!r.ok) return;
+        const buf = await ctx.decodeAudioData(await r.arrayBuffer()), { s0, s1 } = trimOf(buf);
+        V.clips[t] = { buf, s0, s1, ms: (s1 - s0) * 1000 };
+      } catch (e) {   // opened as a file: fall back to a plain audio element
+        await new Promise(res => {
+          const a = new Audio(); let fin = false; const end = () => { if (!fin) { fin = true; res(); } };
+          a.preload = 'auto'; a.onloadedmetadata = () => { if (isFinite(a.duration) && a.duration > 0) V.clips[t] = { a, ms: a.duration * 1000 }; end(); };
+          a.onerror = end; setTimeout(end, 4000); a.src = src;
+        });
+      }
+    }));
+  }
+  const lineMs = t => V.clips[t] ? V.clips[t].ms + (V.clips[t].buf ? 120 : 150) : 450 + t.length * 72;
   function voiceStop() {
+    playing.forEach(s => { try { s.stop(); } catch (e) {} }); playing.clear();
     if (V.a) { V.a.pause(); V.a = null; }
     if (window.speechSynthesis) speechSynthesis.cancel();
   }
   function voiceStart(text, offMs) {
-    voiceStop(); if (!V.on) return;
+    if (V.a) { V.a.pause(); V.a = null; }
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    if (!V.on) return;
     const c = V.clips[text];
+    if (c && c.buf) {
+      const off = (offMs || 0) / 1000, len = c.s1 - c.s0 - off; if (len <= 0.05) return;
+      const s = ctx.createBufferSource(), g = ctx.createGain(), t0 = ctx.currentTime;
+      s.buffer = c.buf; s.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(off > 0 ? 0 : 1, t0); if (off > 0) g.gain.linearRampToValueAtTime(1, t0 + 0.03);
+      g.gain.setValueAtTime(1, t0 + Math.max(0.03, len - 0.04)); g.gain.linearRampToValueAtTime(0, t0 + len);
+      s.start(t0, c.s0 + off, len); playing.add(s); s.onended = () => playing.delete(s);
+      if (!S.paused) ctx.resume();
+      return;
+    }
     if (c) {
       const a = c.a; V.a = a;
       try { a.currentTime = (offMs || 0) / 1000; } catch (e) {}
@@ -411,6 +440,7 @@ function LINES(st) {
     speechSynthesis.speak(u); if (S.paused) speechSynthesis.pause();
   }
   function voicePause(p) {
+    if (ctx) { if (p) ctx.suspend(); else ctx.resume(); }
     if (V.a) { if (p) V.a.pause(); else V.a.play().catch(() => {}); }
     else if (window.speechSynthesis) { if (p) speechSynthesis.pause(); else speechSynthesis.resume(); }
   }
@@ -751,33 +781,33 @@ function LINES(st) {
     
     // ----- 1 · The setup: a pretrained model, fine-tuned; the seed's two random choices -----
     progress(0, 0); ex.reset(); ex.show([]); S.ax = { shown: 0 }; zone('ex'); look(null);
-    await cue(L.hook); await W(1800); S.ax.shown = 1; renderAxis(live); await W(1000); S.ax.shown = 2; renderAxis(live); await done(200);
-    ex.show(['body']); await say(L.net, 150);
-    ex.show(['body', 'o', 'score']); ex.focus('o', 'score'); await say(L.tune, 150);
-    ex.show(['body', 'o', 'w', 'score']); ex.focus('w'); await cue(L.head); await W(400); ex.weights(wiOf(order1[0])); await done(100);
-    ex.focus('o'); await cue(L.data); await W(300); ex.order(doOf(order1[0])); await done(400);
-    ex.show(ALL); ex.focus('seed', 'w', 'o'); ex.seed(1, live); await cue(L.seed); await W(300); if (live) ex.pulse(); await done(200);
-    ex.focus(); await cue(L.run1); await W(300); await train(order1[0], 6600); await done(100);
+    await cue(L.hook); await W(1800); S.ax.shown = 1; renderAxis(live); await W(1000); S.ax.shown = 2; renderAxis(live); await done(60);
+    ex.show(['body']); await say(L.net, 60);
+    ex.show(['body', 'o', 'score']); ex.focus('o', 'score'); await say(L.tune, 60);
+    ex.show(['body', 'o', 'w', 'score']); ex.focus('w'); await cue(L.head); await W(400); ex.weights(wiOf(order1[0])); await done(40);
+    ex.focus('o'); await cue(L.data); await W(300); ex.order(doOf(order1[0])); await done(80);
+    ex.show(ALL); ex.focus('seed', 'w', 'o'); ex.seed(1, live); await cue(L.seed); await W(300); if (live) ex.pulse(); await done(80);
+    ex.focus(); await cue(L.run1); await W(200); await train(order1[0], 6600); await done(0);
     ex.score(pct(S.fin[order1[0]])); S.ax.best = order1[0]; renderAxis(); look('axis');
-    await say(L.score1, 300); look(null);
+    await say(L.score1, 120); look(null);
 
     // ----- 2 · The problem: change only the seed -----
     progress(1, 0); S.ax = { shown: 2, markLast: true };
     await cue(L.change);
-    for (let n = 3; n <= 5; n++) { await run(n, 1300); await W(150); }
-    await done(100);
+    for (let n = 3; n <= 5; n++) { await run(n, 1000); await W(80); }
+    await done(0);
 
     // ----- 3 · Showing it: a hundred seeds -----
     progress(2, 0); await cue(L.hundred);
     ex.quick(true);
-    for (let n = 6; n <= 20; n++) { await run(n, 0); await W(170); }
-    for (let n = 21; n <= N; n++) { await run(n, 0); await W(40); }
+    for (let n = 6; n <= 20; n++) { await run(n, 0); await W(110); }
+    for (let n = 21; n <= N; n++) { await run(n, 0); await W(22); }
     ex.quick(false); S.ax.markLast = false; renderAxis();
-    await done(200);
-    look('axis'); await say(L.dist, 200);
+    await done(0);
+    look('axis'); await say(L.dist, 80);
     S.ax.bracket = { a: S.lo, b: S.hi, label: ((S.hi - S.lo) * 100).toFixed(1) + ' points' }; renderAxis();
-    await say(L.swing, 300);
-    await say(L.paper1, 200); look(null);
+    await say(L.swing, 120);
+    await say(L.paper1, 100); look(null);
 
     // ----- 4 · The culprit: change one random choice at a time -----
     progress(3, 0); zone('ex'); ex.show(['body', 'w', 'o', 'score']); ex.focus(); ex.lock(null);
@@ -786,20 +816,20 @@ function LINES(st) {
     const lane = async (ids, step) => {
       S.ax = { shown: N, lit: new Set() }; renderAxis();
       for (const i of ids) {
-        step(i); ex.score(''); ex.curve(null, 0); await W(250);
-        await train(i, 420); ex.score(pct(S.fin[i])); S.ax.lit.add(i); renderAxis(); await W(150);
+        step(i); ex.score(''); ex.curve(null, 0); await W(100);
+        await train(i, 300); ex.score(pct(S.fin[i])); S.ax.lit.add(i); renderAxis(); await W(60);
       }
       const vs = ids.map(i => S.fin[i]), a = Math.min(...vs), b = Math.max(...vs);
       S.ax.bracket = { a, b, label: ((b - a) * 100).toFixed(1) + ' points' }; renderAxis();
     };
     ex.weights(0); ex.order(0); ex.lock('w');
-    await cue(L.lockW); await W(300);
+    await cue(L.lockW); await W(150);
     await lane(Array.from({ length: K }, (_, d) => d), i => ex.order(doOf(i)));
-    await done(100); look('axis'); await say(L.g1, 200); look(null);
+    await done(0); look('axis'); await say(L.g1, 80); look(null);
     ex.order(0); ex.lock('o');
-    await cue(L.lockO); await W(300);
+    await cue(L.lockO); await W(150);
     await lane(Array.from({ length: K }, (_, w) => w * K), i => ex.weights(wiOf(i)));
-    await done(100); look('axis'); await say(L.g2, 300); look(null); ex.lock(null);
+    await done(0); look('axis'); await say(L.g2, 120); look(null); ex.lock(null);
 
     // ----- 5 · The implications: one reported number hides the lottery -----
     progress(4, 0); zone('methods'); methods(1, 20); look(null);
@@ -807,39 +837,39 @@ function LINES(st) {
     const rng = mulberry32(2020), flick = async (n, reps) => {   // random draws of n seeds; the best of each draw is marked
       for (let r = 0; r < reps; r++) {
         const pick = Array.from(shuffle(N, rng)).slice(0, n); let best = pick[0]; pick.forEach(i => { if (S.fin[i] > S.fin[best]) best = i; });
-        S.ax.lit = new Set(pick); S.ax.best = best; renderAxis(); await W(r < 2 ? 550 : 260);
+        S.ax.lit = new Set(pick); S.ax.best = best; renderAxis(); await W(r < 2 ? 450 : 220);
       }
       S.ax.lit = new Set(); S.ax.best = undefined; renderAxis();
     };
     S.ax = { shown: N, lit: new Set(), flags: [] }; renderAxis();
-    await say(L.catch, 150);
-    await cue(L.ab); await flick(1, 4); S.ax.flags = [flagsAB(e1)[0]]; renderAxis(); await flick(20, 4); S.ax.flags = flagsAB(e1); renderAxis(); await done(150);
+    await say(L.catch, 60);
+    await cue(L.ab); await flick(1, 4); S.ax.flags = [flagsAB(e1)[0]]; renderAxis(); await flick(20, 4); S.ax.flags = flagsAB(e1); renderAxis(); await done(60);
     S.ax.bracket = { a: e1, b: e20, label: 'B ahead by ' + ((e20 - e1) * 100).toFixed(1) + ' points' }; renderAxis();
-    await say(L.abgap, 300);
-    zone('mrpc'); drawMrpc(0); await cue(L.real); await W(900);
-    for (let k = 1; k <= 3; k++) { drawMrpc(k); await W(450); }
-    await done(100); await cue(L.bert); await W(1800); drawMrpc(4); await done(500);
+    await say(L.abgap, 120);
+    zone('mrpc'); drawMrpc(0); await cue(L.real); await W(500);
+    for (let k = 1; k <= 3; k++) { drawMrpc(k); await W(300); }
+    await done(0); await cue(L.bert); await W(1800); drawMrpc(4); await done(200);
 
     // ----- 6 · The solution: equal tries, and a cheaper search (start many, stop early) -----
     progress(5, 0); zone('methods'); methods(1, 20); S.ax = { shown: N, lit: new Set(), flags: flagsAB(e1) }; renderAxis();
     await cue(L.fair); await W(1200); methods(20, 20);
-    await tween(1300, u => { S.ax.flags = flagsAB(e1 + (e20 - e1) * u); renderAxis(); });
-    S.ax.bracket = { a: e20, b: e20, label: 'identical' }; renderAxis(); await done(100);
-    await say(L.tie, 300);
-    await say(L.fix, 400);
+    await tween(1000, u => { S.ax.flags = flagsAB(e1 + (e20 - e1) * u); renderAxis(); });
+    S.ax.bracket = { a: e20, b: e20, label: 'identical' }; renderAxis(); await done(0);
+    await say(L.tie, 100);
+    await say(L.fix, 120);
     const race = { u: 0, cut: false, end: false };
     zone('race'); S.topDraw = () => drawRace(race); drawRace(race); S.ax = { shown: 0 }; renderAxis(); look(null);
-    await say(L.race1, 200);
+    await say(L.race1, 80);
     const atStop = STOP / (S.L - 1);
-    await cue(L.race2); await W(600);
-    await tween(2600, u => { race.u = atStop * u; drawRace(race); });
-    await W(500); race.cut = true; drawRace(race); await W(400);
-    await tween(3200, u => { race.u = atStop + (1 - atStop) * u; drawRace(race); });
-    await done(200);
+    await cue(L.race2); await W(300);
+    await tween(2300, u => { race.u = atStop * u; drawRace(race); });
+    await W(300); race.cut = true; drawRace(race); await W(250);
+    await tween(2800, u => { race.u = atStop + (1 - atStop) * u; drawRace(race); });
+    await done(0);
     race.end = true; drawRace(race);
     S.ax = { shown: N, lit: new Set(S.kept), best: S.best }; renderAxis(live);
-    await say(L.race3, 400);
-    await say(L.paper3, 400);
+    await say(L.race3, 150);
+    await say(L.paper3, 150);
     await say(L.end, 1200);
     goLive(); S.ended = true; $('pp').textContent = 'Replay';
   }

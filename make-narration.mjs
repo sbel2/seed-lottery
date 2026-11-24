@@ -53,7 +53,7 @@ const voice = process.env.ELEVENLABS_VOICE_ID || (envVoice && envVoice[1]) || 'n
 if (/^paste_/.test(key)) { console.error('Replace paste_your_key_here in seed-lottery/.env with your ElevenLabs key.'); process.exit(1); }
 
 // Spoken form only: subtitles keep the numerals, the voice gets words it can't misread.
-const SAY = [[/2020/g, 'twenty twenty'], [/2,100/g, 'twenty-one hundred']];
+const SAY = [[/\b2020\b/g, 'twenty twenty'], [/\b2,100\b/g, 'two thousand one hundred']];
 const speak = t => t && SAY.reduce((s, [re, w]) => s.replace(re, w), t);
 
 let made = 0;
