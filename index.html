@@ -32,7 +32,7 @@ h1 { font-weight: 600; font-size: 22px; line-height: 1.15; letter-spacing: -0.01
 .top { display: flex; align-items: center; justify-content: center; min-width: 0; transition: opacity .45s; }
 .top > div { width: 100%; }
 .top > [hidden] { display: none; }
-#wide { max-width: 680px; }
+#wide { max-width: 760px; }
 .bottom { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
 #axis { transition: opacity .45s; }
 .top.dim, #axis.dim { opacity: .2; }
@@ -111,6 +111,11 @@ svg text.lab, .ex text.lab { font: 500 13px var(--body); fill: var(--ink-2); }
 .ex .hw.neg { stroke: var(--neg); }
 .ex .node { fill: var(--surface); stroke: var(--ink-3); stroke-width: 1.2; }
 .ex .node.outn { stroke: var(--ink); stroke-width: 1.6; }
+svg .rc { fill: none; stroke: var(--accent); stroke-opacity: .3; stroke-width: 1; }
+svg .rc.off { stroke: var(--ghost); stroke-opacity: .3; }
+svg .rc.on { stroke-opacity: .8; stroke-width: 1.3; }
+svg .rc.best { stroke: var(--accent-2); stroke-opacity: 1; stroke-width: 2.5; }
+svg .cutl { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 4; }
 .methods { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 520px; margin: 0 auto; width: 100%; }
 .methods div { border-radius: 12px; padding: 14px; background: rgba(255,255,255,.04); display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .methods b { font-size: 14px; font-weight: 500; color: var(--ink-2); }
@@ -298,46 +303,48 @@ function lineHash(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { 
 <script id="lines">
 function pct(v, d) { return (v * 100).toFixed(d === undefined ? 1 : d) + '%'; }
 function LINES(st) {
-  const climb = ((st.E(20) - st.E(1)) * 100).toFixed(1), swing = ((st.hi - st.lo) * 100).toFixed(1);
+  const climb = ((st.E(20) - st.E(1)) * 100).toFixed(1), swing = ((st.hi - st.lo) * 100).toFixed(1), cost = Math.round(st.cutCost);
   return {
-    hook: 'Here’s something strange about AI. Train the exact same model twice, and you can get very different results. Let me show you why.',
-    net: 'This is a neural network. A tiny one. Each line is a weight: a number the network adjusts as it learns.',
-    pre: 'This grey part stands in for a pretrained model, like BERT, which read billions of words of English before anyone gave it a specific job. That’s called pretraining.',
-    tune: 'Then we fine-tune it on a small, specific job, called a downstream task. Say, deciding whether two sentences mean the same thing. It gets a few practice examples, and a test at the end. That’s the setting of this paper.',
-    head: 'For the new job, we attach a new output layer. Its weights start out random. Blue is positive, red is negative. That’s the first roll of the dice.',
-    data: 'Now the practice examples. Sixty-four of them, fed in four at a time. Before training, their order is shuffled at random. That’s the second roll of the dice.',
-    seed: 'Both rolls are controlled by one number: the random seed. Change the seed, and both rolls come out differently.',
-    run1: 'So let’s train with seed one. The model goes through the examples six times, in a new shuffled order each time, and every weight gets nudged, the pretrained ones too. Then we test it on 400 examples it has never seen.',
-    score1: 'It gets ' + pct(st.first, 0) + ' accuracy: ' + Math.round(st.first * 400) + ' of the 400 test examples right. That orange dot is our result.',
-
-    change: 'Now here’s the experiment. Same network. Same examples. Same settings. We only change the seed.',
-    hundred: 'Let’s run a hundred of them.',
-    dist: 'Each dot is one complete training run. Most land in the middle, but some seeds are far luckier than others.',
-    swing: 'The worst run got ' + pct(st.lo) + '. The best got ' + pct(st.hi) + '. That’s a ' + swing + '-point gap, and the only thing we changed was the seed.',
-    paper1: 'And this isn’t just a toy. In 2020, researchers fine-tuned BERT 2,100 times across four tasks, and found the same thing. On the small datasets, some runs even failed completely.',
-
-    suspects: 'So which roll of the dice is doing this? The starting weights, or the order of the examples? The paper gave each roll its own seed, so it could change one at a time. Let’s do the same.',
-    lockW: 'First, we keep the starting weights the same every run, and only shuffle the order.',
-    g1: 'Just by reordering the same 64 examples, the accuracy moves ' + st.g1.toFixed(1) + ' points.',
-    lockO: 'Now the opposite. Keep the order the same, and only reroll the starting weights.',
-    g2: st.g2.toFixed(1) + ' points. So both of them matter.',
-    paper2: 'The paper found the same thing: on average, the two matter about equally. And some starting weights did well on all four tasks they tried.',
-
-    catch: 'Now, here’s why this is a problem. When a paper reports a result, you don’t see a hundred dots. You see one.',
-    lab1: 'Imagine a lab that tries one seed, and reports whatever it gets.',
-    lab5: 'A second lab tries five seeds, and reports only the best one.',
-    lab20: 'A third lab tries twenty.',
-    climb: 'Same model, same code, and the reported accuracy went up ' + climb + ' points, just from trying more seeds.',
-    real: 'And this actually happened. Here are published scores on a benchmark called MRPC.',
-    bert: 'After 625 seeds, BERT’s best run on this task scored above the published results of XLNet, RoBERTa and ALBERT: newer models that had been reported as better. The paper is careful to note that those models never got 625 tries.',
-
-    ab: 'So how do you know if a new method is actually better, or just luckier? Let’s compare two: method A and method B.',
-    abgap: 'A reports one try. B reports its best out of twenty. B looks ' + climb + ' points better. Sounds like a breakthrough, right?',
-    fair: 'But let’s give A twenty tries as well.',
-    tie: 'They’re identical. A and B were the same method all along. B just had more tries.',
-    fix: 'So the fix is simple. Report how many seeds you tried, and compare methods using the same number of tries.',
-    cheap: 'And if you can afford many tries, the paper has a cheaper trick: start lots of runs, and stop the unpromising ones early.',
-    end: 'Because one score is just one lottery ticket.',
+    // 1 · the setup
+    hook: 'Train the same model twice and you can get two quite different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets, and what it means for research results.',
+    net: 'Here’s a small neural network. The grey layers stand in for a pretrained model like BERT, which already learned general English from billions of words.',
+    tune: 'We fine-tune it for one narrow task, like deciding whether two sentences mean the same thing. It trains on 64 examples and gets tested on 400 it hasn’t seen.',
+    head: 'The task needs a new output layer, and its weights start out random. Blue for positive, red for negative.',
+    data: 'The training examples also get shuffled into a random order.',
+    seed: 'Both of those random choices come from one number, the seed.',
+    run1: 'Here’s training with seed 1. The model goes through the examples six times, in a fresh order each pass, and every weight shifts a little, the pretrained ones included.',
+    score1: 'It gets ' + pct(st.first, 0) + ' of the test examples right. That’s the orange dot.',
+    // 2 · the problem
+    change: 'Now we keep everything else the same and only change the seed.',
+    // 3 · showing it
+    hundred: 'Here are a hundred seeds.',
+    dist: 'Each dot is one full training run, and the seed is the only difference between them.',
+    swing: 'The worst run scored ' + pct(st.lo) + ', the best ' + pct(st.hi) + '. That’s a ' + swing + '-point spread from the seed alone.',
+    paper1: 'The paper found the same with BERT, over 2,100 runs on four tasks. On the smaller datasets, some runs failed completely.',
+    // 4 · the culprit
+    suspects: 'The seed controls two things, so which one is responsible? The paper gave each its own seed and varied them one at a time.',
+    lockW: 'Same starting weights every run, and only the order changes.',
+    g1: 'Accuracy still moves ' + st.g1.toFixed(1) + ' points.',
+    lockO: 'Now the same order every run, and only the starting weights change.',
+    g2: st.g2.toFixed(1) + ' points. Both matter, and in the paper they mattered about equally on average.',
+    // 5 · the implications
+    catch: 'That’s a problem for research, because papers usually report one number, not a hundred.',
+    ab: 'Say method A reports a single run, and method B reports its best of twenty.',
+    abgap: 'B comes out ' + climb + ' points ahead and looks like the better method.',
+    real: 'This happens with published results. On a benchmark called MRPC,',
+    bert: 'BERT’s best run out of 625 seeds beat the reported scores of XLNet, RoBERTa and ALBERT, newer models that were reported as better. Those models weren’t given 625 tries.',
+    // 6 · the solution
+    fair: 'Back to A and B. Give A twenty tries as well,',
+    tie: 'and the gap disappears. They were the same method, and B just had more tries.',
+    fix: 'So the paper says to compare methods at the same number of tries.',
+    race1: 'More tries cost more compute, so the paper also suggests a cheaper way to search: start lots of runs and stop most of them early.',
+    race2: 'Here are all 100 runs as they train. A quarter of the way in, we keep the top ' + KEEP + ' and stop the rest.',
+    race3: (st.bestCut === st.hi
+      ? 'The run that ends up best is among the ' + KEEP + ' we kept'
+      : 'The best run we kept finishes at ' + pct(st.bestCut) + ', against ' + pct(st.hi) + ' for the best of all 100') +
+      ', and the search cost about ' + cost + ' runs’ worth of training instead of 100.',
+    paper3: 'With BERT, the paper found weak runs often show it within the first epoch, and stopping them early gave small but consistent gains for the same compute.',
+    end: 'So when you see a single score, it’s worth asking how many seeds it took to get it.',
   };
 }
 </script>
@@ -610,6 +617,38 @@ function LINES(st) {
     F.svg.setAttribute('aria-label', 'MRPC validation scores from the paper: BERT best of 625 seeds, 91.4, above XLNet 89.2, RoBERTa 90.9 and ALBERT 90.9');
   }
 
+  // ---------- the race: all 100 runs' test accuracy during training; at STOP keep the top KEEP, stop the rest ----------
+  function drawRace(r) {
+    const F = frame($('wide'), S.topH || 220, { l: 40, r: 120, t: 30, b: 24 }), lo = 0.35, hi = 0.9, last = S.L - 1;
+    const X = k => F.x0 + k / last * (F.x1 - F.x0), Y = v => F.y0 - (v - lo) / (hi - lo) * (F.y0 - F.y1);
+    F.svg.appendChild(el('text', { class: 'lab', x: 0, y: 12 }, '100 runs: test accuracy while training'));
+    [0.4, 0.6, 0.8].forEach(v => { F.svg.appendChild(el('line', { class: 'gl', x1: F.x0, x2: F.x1, y1: Y(v), y2: Y(v) })); F.svg.appendChild(el('text', { x: F.x0 - 8, y: Y(v) + 4, 'text-anchor': 'end' }, pct(v, 0))); });
+    F.svg.appendChild(el('text', { x: F.x0, y: F.y0 + 18 }, 'start'));
+    F.svg.appendChild(el('text', { x: F.x1, y: F.y0 + 18, 'text-anchor': 'end' }, 'end of training'));
+    const m = r.u * last;
+    if (m >= STOP - 1e-6) {
+      F.svg.appendChild(el('line', { class: 'cutl', x1: X(STOP), x2: X(STOP), y1: F.y1 - 4, y2: F.y0 }));
+      F.svg.appendChild(el('text', { class: 'lbl', x: X(STOP) + 6, y: F.y1 + 6 }, r.cut ? 'keep top ' + KEEP + ', stop ' + (N - KEEP) : Math.round(STOP / last * 100) + '% in'));
+    }
+    const path = i => {
+      const c = S.curves[i], stopAt = r.cut && !S.kept.has(i) ? STOP : last, mm = Math.min(m, stopAt);
+      let d = 'M' + X(0).toFixed(1) + ' ' + Y(c[0]).toFixed(1);
+      for (let k = 1; k <= Math.floor(mm); k++) d += 'L' + X(k).toFixed(1) + ' ' + Y(c[k]).toFixed(1);
+      const f = mm - Math.floor(mm), k0 = Math.floor(mm);
+      if (f > 0 && k0 + 1 < c.length) d += 'L' + X(k0 + f).toFixed(1) + ' ' + Y(c[k0] + (c[k0 + 1] - c[k0]) * f).toFixed(1);
+      return d;
+    };
+    const cls = i => !r.cut ? 'rc' : S.kept.has(i) ? (r.end && i === S.best ? 'rc best' : 'rc on') : 'rc off';
+    const ids = S.curves.map((_, i) => i).sort((a, b) => (cls(a) === 'rc off' ? 0 : 1) - (cls(b) === 'rc off' ? 0 : 1) || (a === S.best) - (b === S.best));
+    ids.forEach(i => F.svg.appendChild(el('path', { class: cls(i), d: path(i) })));
+    if (r.end) {
+      F.svg.appendChild(el('text', { class: 'fl b', x: F.x1 + 8, y: Y(S.fin[S.best]) + 4 }, 'best: ' + pct(S.fin[S.best])));
+      F.svg.appendChild(el('text', { class: 'lbl', x: F.x1 + 8, y: F.y0 - 6 }, '≈' + Math.round(S.cutCost) + ' runs of'));
+      F.svg.appendChild(el('text', { class: 'lbl', x: F.x1 + 8, y: F.y0 + 10 }, 'compute, not 100'));
+    }
+    F.svg.setAttribute('aria-label', 'Test accuracy of 100 runs during training. At ' + Math.round(STOP / last * 100) + '% of training the top ' + KEEP + ' are kept and the rest stopped.');
+  }
+
   // ---------- layout: everything fits one screen ----------
   function fit() {
     const top = $('top'), bot = $('bottom'), st = $('stage');
@@ -709,96 +748,99 @@ function LINES(st) {
       ex.score(pct(S.fin[i])); S.ax.shown = n; renderAxis(live);
     };
     const e1 = S.E(1), e20 = S.E(20), climb = '+' + ((e20 - e1) * 100).toFixed(1) + ' points';
-    const flagsCatch = () => [{ v: e1, label: '1 seed', row: 1 }, { v: e20, label: 'best of 20', b: true, row: 0 }];
-
-    // ----- 1 · Meet the seed: build the model piece by piece -----
+    
+    // ----- 1 · The setup: a pretrained model, fine-tuned; the seed's two random choices -----
     progress(0, 0); ex.reset(); ex.show([]); S.ax = { shown: 0 }; zone('ex'); look(null);
-    await cue(L.hook); await W(1500); S.ax.shown = 1; renderAxis(live); await W(1200); S.ax.shown = 2; renderAxis(live); await done(300);
-    ex.show(['body']); await say(L.net);
-    await say(L.pre, 200);
-    ex.show(['body', 'o', 'score']); ex.focus('o', 'score'); await say(L.tune, 300);
-    ex.show(['body', 'o', 'w', 'score']); ex.focus('w'); await cue(L.head); await W(500); ex.weights(wiOf(order1[0])); await done(200);
-    ex.focus('o'); await cue(L.data); await W(1800); ex.order(doOf(order1[0])); await done(300);
-    ex.show(ALL); ex.focus('seed', 'w', 'o'); ex.seed(1, live); await cue(L.seed); await W(400); if (live) ex.pulse(); await done(300);
-    ex.show(ALL); ex.focus(); await cue(L.run1); await W(600); await train(order1[0], 7200); await done(100);
+    await cue(L.hook); await W(1800); S.ax.shown = 1; renderAxis(live); await W(1000); S.ax.shown = 2; renderAxis(live); await done(200);
+    ex.show(['body']); await say(L.net, 150);
+    ex.show(['body', 'o', 'score']); ex.focus('o', 'score'); await say(L.tune, 150);
+    ex.show(['body', 'o', 'w', 'score']); ex.focus('w'); await cue(L.head); await W(400); ex.weights(wiOf(order1[0])); await done(100);
+    ex.focus('o'); await cue(L.data); await W(300); ex.order(doOf(order1[0])); await done(400);
+    ex.show(ALL); ex.focus('seed', 'w', 'o'); ex.seed(1, live); await cue(L.seed); await W(300); if (live) ex.pulse(); await done(200);
+    ex.focus(); await cue(L.run1); await W(300); await train(order1[0], 6600); await done(100);
     ex.score(pct(S.fin[order1[0]])); S.ax.best = order1[0]; renderAxis(); look('axis');
-    await say(L.score1, 400); look(null);
+    await say(L.score1, 300); look(null);
 
-    // ----- 2 · The distribution: take the time to watch it form -----
-    progress(1, 0); S.ax = { shown: 2, markLast: true }; look(null);
+    // ----- 2 · The problem: change only the seed -----
+    progress(1, 0); S.ax = { shown: 2, markLast: true };
     await cue(L.change);
-    for (let n = 2; n <= 6; n++) { await run(n, 1100); await W(250); }
-    await done(200);
-    await cue(L.hundred);
-    ex.quick(true);
-    for (let n = 7; n <= 20; n++) { await run(n, 0); await W(260); }
-    for (let n = 21; n <= N; n++) { await run(n, 0); await W(60); }
-    ex.quick(false); S.ax.markLast = false; renderAxis();
-    await done(400);
-    look('axis'); await say(L.dist, 500);
-    S.ax.bracket = { a: S.lo, b: S.hi, label: ((S.hi - S.lo) * 100).toFixed(1) + ' points' }; renderAxis();
-    await say(L.swing, 600);
-    await say(L.paper1, 300); look(null);
+    for (let n = 3; n <= 5; n++) { await run(n, 1300); await W(150); }
+    await done(100);
 
-    // ----- 3 · Two suspects: lock one roll, change the other -----
-    progress(2, 0); zone('ex'); ex.show(['body', 'w', 'o', 'score']); ex.focus(); ex.lock(null);
+    // ----- 3 · Showing it: a hundred seeds -----
+    progress(2, 0); await cue(L.hundred);
+    ex.quick(true);
+    for (let n = 6; n <= 20; n++) { await run(n, 0); await W(170); }
+    for (let n = 21; n <= N; n++) { await run(n, 0); await W(40); }
+    ex.quick(false); S.ax.markLast = false; renderAxis();
+    await done(200);
+    look('axis'); await say(L.dist, 200);
+    S.ax.bracket = { a: S.lo, b: S.hi, label: ((S.hi - S.lo) * 100).toFixed(1) + ' points' }; renderAxis();
+    await say(L.swing, 300);
+    await say(L.paper1, 200); look(null);
+
+    // ----- 4 · The culprit: change one random choice at a time -----
+    progress(3, 0); zone('ex'); ex.show(['body', 'w', 'o', 'score']); ex.focus(); ex.lock(null);
     showRun(0, 1); ex.score(''); ex.curve(null, 0); S.ax = { shown: N }; renderAxis(); look(null);
     ex.focus('w', 'o'); await say(L.suspects); ex.focus();
     const lane = async (ids, step) => {
       S.ax = { shown: N, lit: new Set() }; renderAxis();
       for (const i of ids) {
-        step(i); ex.score(''); ex.curve(null, 0); await W(420);
-        await train(i, 420); ex.score(pct(S.fin[i])); S.ax.lit.add(i); renderAxis(); await W(260);
+        step(i); ex.score(''); ex.curve(null, 0); await W(250);
+        await train(i, 420); ex.score(pct(S.fin[i])); S.ax.lit.add(i); renderAxis(); await W(150);
       }
       const vs = ids.map(i => S.fin[i]), a = Math.min(...vs), b = Math.max(...vs);
       S.ax.bracket = { a, b, label: ((b - a) * 100).toFixed(1) + ' points' }; renderAxis();
     };
     ex.weights(0); ex.order(0); ex.lock('w');
-    await cue(L.lockW); await W(600);
+    await cue(L.lockW); await W(300);
     await lane(Array.from({ length: K }, (_, d) => d), i => ex.order(doOf(i)));
-    await done(200); look('axis'); await say(L.g1, 400); look(null);
+    await done(100); look('axis'); await say(L.g1, 200); look(null);
     ex.order(0); ex.lock('o');
-    await cue(L.lockO); await W(600);
+    await cue(L.lockO); await W(300);
     await lane(Array.from({ length: K }, (_, w) => w * K), i => ex.weights(wiOf(i)));
-    await done(200); look('axis'); await say(L.g2, 400); look(null);
-    ex.lock(null); await say(L.paper2, 300);
+    await done(100); look('axis'); await say(L.g2, 300); look(null); ex.lock(null);
 
-    // ----- 4 · The catch: nobody reports a hundred dots -----
-    progress(3, 0); ex.show(ALL); look('axis');
-    S.ax = { shown: N, lit: new Set(), flags: [] }; renderAxis();
-    await say(L.catch, 200); look(null);
-    const rng = mulberry32(2020), tryN = async (n, row, label, text) => {
-      await cue(text); await W(700);
-      for (let r = 0; r < 6; r++) {
-        const pick = Array.from(shuffle(N, rng)).slice(0, n); let best = pick[0]; pick.forEach(i => { if (S.fin[i] > S.fin[best]) best = i; });
-        S.ax.lit = new Set(pick); S.ax.best = best; showRun(best, order1.indexOf(best) + 1); renderAxis(); await W(r < 2 ? 700 : 300);
-      }
-      S.ax.lit = new Set(); S.ax.best = undefined;
-      S.ax.flags.push({ v: S.E(n), label, b: n > 1, row }); renderAxis(); await done(400);
-    };
-    await tryN(1, 2, '1 seed', L.lab1);
-    await tryN(5, 1, 'best of 5', L.lab5);
-    await tryN(20, 0, 'best of 20', L.lab20);
-    S.ax.bracket = { a: e1, b: e20, label: climb }; renderAxis(); look('axis');
-    await say(L.climb, 600); look(null);
-    zone('mrpc'); drawMrpc(0); await cue(L.real); await W(1400);
-    for (let k = 1; k <= 3; k++) { drawMrpc(k); await W(500); }
-    await done(200); await cue(L.bert); await W(2500); drawMrpc(4); await done(800);
-
-    // ----- 5 · The honest fix: method A vs method B -----
+    // ----- 5 · The implications: one reported number hides the lottery -----
     progress(4, 0); zone('methods'); methods(1, 20); look(null);
     const flagsAB = v => [{ v, label: 'Method A', row: 1 }, { v: e20, label: 'Method B', b: true, row: 0 }];
-    S.ax = { shown: N, lit: new Set(), flags: flagsAB(e1) }; renderAxis();
-    await say(L.ab, 200);
-    S.ax.bracket = { a: e1, b: e20, label: 'B wins by ' + ((e20 - e1) * 100).toFixed(1) + ' points?' }; renderAxis();
-    await say(L.abgap, 500);
-    await cue(L.fair); await W(900); methods(20, 20); S.ax.bracket = null;
-    await tween(1400, u => { S.ax.flags = flagsAB(e1 + (e20 - e1) * u); renderAxis(); });
-    S.ax.bracket = { a: e20, b: e20, label: 'identical' }; renderAxis(); await done(300);
-    await say(L.tie, 600);
-    await say(L.fix, 800);
-    await say(L.cheap, 500);
-    S.ax = { shown: N }; renderAxis(); await say(L.end, 600);
+    const rng = mulberry32(2020), flick = async (n, reps) => {   // random draws of n seeds; the best of each draw is marked
+      for (let r = 0; r < reps; r++) {
+        const pick = Array.from(shuffle(N, rng)).slice(0, n); let best = pick[0]; pick.forEach(i => { if (S.fin[i] > S.fin[best]) best = i; });
+        S.ax.lit = new Set(pick); S.ax.best = best; renderAxis(); await W(r < 2 ? 550 : 260);
+      }
+      S.ax.lit = new Set(); S.ax.best = undefined; renderAxis();
+    };
+    S.ax = { shown: N, lit: new Set(), flags: [] }; renderAxis();
+    await say(L.catch, 150);
+    await cue(L.ab); await flick(1, 4); S.ax.flags = [flagsAB(e1)[0]]; renderAxis(); await flick(20, 4); S.ax.flags = flagsAB(e1); renderAxis(); await done(150);
+    S.ax.bracket = { a: e1, b: e20, label: 'B ahead by ' + ((e20 - e1) * 100).toFixed(1) + ' points' }; renderAxis();
+    await say(L.abgap, 300);
+    zone('mrpc'); drawMrpc(0); await cue(L.real); await W(900);
+    for (let k = 1; k <= 3; k++) { drawMrpc(k); await W(450); }
+    await done(100); await cue(L.bert); await W(1800); drawMrpc(4); await done(500);
+
+    // ----- 6 · The solution: equal tries, and a cheaper search (start many, stop early) -----
+    progress(5, 0); zone('methods'); methods(1, 20); S.ax = { shown: N, lit: new Set(), flags: flagsAB(e1) }; renderAxis();
+    await cue(L.fair); await W(1200); methods(20, 20);
+    await tween(1300, u => { S.ax.flags = flagsAB(e1 + (e20 - e1) * u); renderAxis(); });
+    S.ax.bracket = { a: e20, b: e20, label: 'identical' }; renderAxis(); await done(100);
+    await say(L.tie, 300);
+    await say(L.fix, 400);
+    const race = { u: 0, cut: false, end: false };
+    zone('race'); S.topDraw = () => drawRace(race); drawRace(race); S.ax = { shown: 0 }; renderAxis(); look(null);
+    await say(L.race1, 200);
+    const atStop = STOP / (S.L - 1);
+    await cue(L.race2); await W(600);
+    await tween(2600, u => { race.u = atStop * u; drawRace(race); });
+    await W(500); race.cut = true; drawRace(race); await W(400);
+    await tween(3200, u => { race.u = atStop + (1 - atStop) * u; drawRace(race); });
+    await done(200);
+    race.end = true; drawRace(race);
+    S.ax = { shown: N, lit: new Set(S.kept), best: S.best }; renderAxis(live);
+    await say(L.race3, 400);
+    await say(L.paper3, 400);
+    await say(L.end, 1200);
     goLive(); S.ended = true; $('pp').textContent = 'Replay';
   }
 

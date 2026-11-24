@@ -1,138 +1,126 @@
 [
   {
-    "text": "Here’s something strange about AI. Train the exact same model twice, and you can get very different results. Let me show you why.",
-    "hash": "072e0c8d"
+    "text": "Train the same model twice and you can get two quite different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets, and what it means for research results.",
+    "hash": "c58193dd"
   },
   {
-    "text": "This is a neural network. A tiny one. Each line is a weight: a number the network adjusts as it learns.",
-    "hash": "80faddcb"
+    "text": "Here’s a small neural network. The grey layers stand in for a pretrained model like BERT, which already learned general English from billions of words.",
+    "hash": "53e72a6e"
   },
   {
-    "text": "This grey part stands in for a pretrained model, like BERT, which read billions of words of English before anyone gave it a specific job. That’s called pretraining.",
-    "hash": "d2250108"
+    "text": "We fine-tune it for one narrow task, like deciding whether two sentences mean the same thing. It trains on 64 examples and gets tested on 400 it hasn’t seen.",
+    "hash": "2100fb6e"
   },
   {
-    "text": "Then we fine-tune it on a small, specific job, called a downstream task. Say, deciding whether two sentences mean the same thing. It gets a few practice examples, and a test at the end. That’s the setting of this paper.",
-    "hash": "4ca390d7"
+    "text": "The task needs a new output layer, and its weights start out random. Blue for positive, red for negative.",
+    "hash": "5f8fd5d9"
   },
   {
-    "text": "For the new job, we attach a new output layer. Its weights start out random. Blue is positive, red is negative. That’s the first roll of the dice.",
-    "hash": "0a419483"
+    "text": "The training examples also get shuffled into a random order.",
+    "hash": "019223cf"
   },
   {
-    "text": "Now the practice examples. Sixty-four of them, fed in four at a time. Before training, their order is shuffled at random. That’s the second roll of the dice.",
-    "hash": "99fbf846"
+    "text": "Both of those random choices come from one number, the seed.",
+    "hash": "11ff7160"
   },
   {
-    "text": "Both rolls are controlled by one number: the random seed. Change the seed, and both rolls come out differently.",
-    "hash": "1a339269"
+    "text": "Here’s training with seed 1. The model goes through the examples six times, in a fresh order each pass, and every weight shifts a little, the pretrained ones included.",
+    "hash": "349c2808"
   },
   {
-    "text": "So let’s train with seed one. The model goes through the examples six times, in a new shuffled order each time, and every weight gets nudged, the pretrained ones too. Then we test it on 400 examples it has never seen.",
-    "hash": "99dc42b5"
+    "text": "It gets 78% of the test examples right. That’s the orange dot.",
+    "hash": "7e532043"
   },
   {
-    "text": "It gets 78% accuracy: 311 of the 400 test examples right. That orange dot is our result.",
-    "hash": "405a859f"
+    "text": "Now we keep everything else the same and only change the seed.",
+    "hash": "afd8cf46"
   },
   {
-    "text": "Now here’s the experiment. Same network. Same examples. Same settings. We only change the seed.",
-    "hash": "cb91506b"
+    "text": "Here are a hundred seeds.",
+    "hash": "9a4d140e"
   },
   {
-    "text": "Let’s run a hundred of them.",
-    "hash": "1a366b69"
+    "text": "Each dot is one full training run, and the seed is the only difference between them.",
+    "hash": "b02dca1c"
   },
   {
-    "text": "Each dot is one complete training run. Most land in the middle, but some seeds are far luckier than others.",
-    "hash": "533c2b47"
+    "text": "The worst run scored 60.8%, the best 82.5%. That’s a 21.7-point spread from the seed alone.",
+    "hash": "6a9415f9"
   },
   {
-    "text": "The worst run got 60.8%. The best got 82.5%. That’s a 21.7-point gap, and the only thing we changed was the seed.",
-    "hash": "83a4778a"
+    "text": "The paper found the same with BERT, over 2,100 runs on four tasks. On the smaller datasets, some runs failed completely.",
+    "hash": "900ed538"
   },
   {
-    "text": "And this isn’t just a toy. In 2020, researchers fine-tuned BERT 2,100 times across four tasks, and found the same thing. On the small datasets, some runs even failed completely.",
-    "hash": "3b85c4fd"
+    "text": "The seed controls two things, so which one is responsible? The paper gave each its own seed and varied them one at a time.",
+    "hash": "62daf837"
   },
   {
-    "text": "So which roll of the dice is doing this? The starting weights, or the order of the examples? The paper gave each roll its own seed, so it could change one at a time. Let’s do the same.",
-    "hash": "41ab6ae1"
+    "text": "Same starting weights every run, and only the order changes.",
+    "hash": "1fc74dfd"
   },
   {
-    "text": "First, we keep the starting weights the same every run, and only shuffle the order.",
-    "hash": "17c4f5ee"
+    "text": "Accuracy still moves 11.2 points.",
+    "hash": "9c034fdd"
   },
   {
-    "text": "Just by reordering the same 64 examples, the accuracy moves 11.2 points.",
-    "hash": "6da9dd2c"
+    "text": "Now the same order every run, and only the starting weights change.",
+    "hash": "53723949"
   },
   {
-    "text": "Now the opposite. Keep the order the same, and only reroll the starting weights.",
-    "hash": "75f54943"
+    "text": "19.0 points. Both matter, and in the paper they mattered about equally on average.",
+    "hash": "f60d1c6f"
   },
   {
-    "text": "19.0 points. So both of them matter.",
-    "hash": "59d65d8b"
+    "text": "That’s a problem for research, because papers usually report one number, not a hundred.",
+    "hash": "ab5c7de9"
   },
   {
-    "text": "The paper found the same thing: on average, the two matter about equally. And some starting weights did well on all four tasks they tried.",
-    "hash": "c851df94"
+    "text": "Say method A reports a single run, and method B reports its best of twenty.",
+    "hash": "6cd3d7dc"
   },
   {
-    "text": "Now, here’s why this is a problem. When a paper reports a result, you don’t see a hundred dots. You see one.",
-    "hash": "992277d8"
+    "text": "B comes out 6.2 points ahead and looks like the better method.",
+    "hash": "bd2e600a"
   },
   {
-    "text": "Imagine a lab that tries one seed, and reports whatever it gets.",
-    "hash": "9ccbfe62"
+    "text": "This happens with published results. On a benchmark called MRPC,",
+    "hash": "d4f05972"
   },
   {
-    "text": "A second lab tries five seeds, and reports only the best one.",
-    "hash": "484477e7"
+    "text": "BERT’s best run out of 625 seeds beat the reported scores of XLNet, RoBERTa and ALBERT, newer models that were reported as better. Those models weren’t given 625 tries.",
+    "hash": "8a845e24"
   },
   {
-    "text": "A third lab tries twenty.",
-    "hash": "f66b45de"
+    "text": "Back to A and B. Give A twenty tries as well,",
+    "hash": "b15b7483"
   },
   {
-    "text": "Same model, same code, and the reported accuracy went up 6.2 points, just from trying more seeds.",
-    "hash": "8abb9799"
+    "text": "and the gap disappears. They were the same method, and B just had more tries.",
+    "hash": "d83c16d6"
   },
   {
-    "text": "And this actually happened. Here are published scores on a benchmark called MRPC.",
-    "hash": "84a88555"
+    "text": "So the paper says to compare methods at the same number of tries.",
+    "hash": "2b132fa5"
   },
   {
-    "text": "After 625 seeds, BERT’s best run on this task scored above the published results of XLNet, RoBERTa and ALBERT: newer models that had been reported as better. The paper is careful to note that those models never got 625 tries.",
-    "hash": "6f5e2182"
+    "text": "More tries cost more compute, so the paper also suggests a cheaper way to search: start lots of runs and stop most of them early.",
+    "hash": "06bb58b7"
   },
   {
-    "text": "So how do you know if a new method is actually better, or just luckier? Let’s compare two: method A and method B.",
-    "hash": "dabca1e1"
+    "text": "Here are all 100 runs as they train. A quarter of the way in, we keep the top 30 and stop the rest.",
+    "hash": "5b32b58e"
   },
   {
-    "text": "A reports one try. B reports its best out of twenty. B looks 6.2 points better. Sounds like a breakthrough, right?",
-    "hash": "7a0cac67"
+    "text": "The run that ends up best is among the 30 we kept, and the search cost about 48 runs’ worth of training instead of 100.",
+    "hash": "cb1aabc3"
   },
   {
-    "text": "But let’s give A twenty tries as well.",
-    "hash": "36b9fbf3"
+    "text": "With BERT, the paper found weak runs often show it within the first epoch, and stopping them early gave small but consistent gains for the same compute.",
+    "hash": "4adc90f4"
   },
   {
-    "text": "They’re identical. A and B were the same method all along. B just had more tries.",
-    "hash": "a2eaa708"
-  },
-  {
-    "text": "So the fix is simple. Report how many seeds you tried, and compare methods using the same number of tries.",
-    "hash": "e5a3b787"
-  },
-  {
-    "text": "And if you can afford many tries, the paper has a cheaper trick: start lots of runs, and stop the unpromising ones early.",
-    "hash": "00cbcef1"
-  },
-  {
-    "text": "Because one score is just one lottery ticket.",
-    "hash": "98706728"
+    "text": "So when you see a single score, it’s worth asking how many seeds it took to get it.",
+    "hash": "1c2b5a7d"
   }
 ]
