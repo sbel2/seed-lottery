@@ -307,45 +307,44 @@ function LINES(st) {
   const climb = ((st.E(20) - st.E(1)) * 100).toFixed(1), swing = ((st.hi - st.lo) * 100).toFixed(1), cost = Math.round(st.cutCost);
   return {
     // 1 · the setup
-    hook: 'Train the same model twice and you can get two quite different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets, and what it means for research results.',
-    net: 'Here’s a small neural network. The grey layers stand in for a pretrained model like BERT, which already learned general English from billions of words.',
-    tune: 'We fine-tune it for one narrow task, like deciding whether two sentences mean the same thing. It trains on 64 examples and gets tested on 400 it hasn’t seen.',
-    head: 'The task needs a new output layer, and its weights start out random. Blue for positive, red for negative.',
-    data: 'The training examples also get shuffled into a random order.',
-    seed: 'Both of those random choices come from one number, the seed.',
-    run1: 'Here’s training with seed 1. The model goes through the examples six times, in a fresh order each pass, and every weight shifts a little, the pretrained ones included.',
+    hook: 'Train the same model twice and you can get two very different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets.',
+    net: 'Here’s a small neural network. The grey layers stand in for a pretrained model like BERT.',
+    tune: 'We fine-tune it for one task: do two sentences mean the same thing? It trains on 64 examples and is tested on 400 new ones.',
+    head: 'The task needs a new output layer, and its weights start out random.',
+    data: 'The training examples get shuffled into a random order.',
+    seed: 'Both random choices come from one number, the seed.',
+    run1: 'Here’s training with seed 1. The model goes through the examples six times, and every weight shifts a little.',
     score1: 'It gets ' + pct(st.first, 0) + ' of the test examples right. That’s the orange dot.',
     // 2 · the problem
-    change: 'Now we keep everything else the same and only change the seed.',
+    change: 'Now change only the seed.',
     // 3 · showing it
     hundred: 'Here are a hundred seeds.',
-    dist: 'Each dot is one full training run, and the seed is the only difference between them.',
-    swing: 'The worst run scored ' + pct(st.lo) + ', the best ' + pct(st.hi) + '. That’s a ' + swing + '-point spread from the seed alone.',
-    paper1: 'The paper found the same with BERT, over 2,100 runs on four tasks. On the smaller datasets, some runs failed completely.',
-    // 4 · the culprit
-    suspects: 'The seed controls two things, so which one is responsible? The paper gave each its own seed and varied them one at a time.',
-    lockW: 'Same starting weights every run, and only the order changes.',
+    dist: 'Each dot is one full training run.',
+    swing: 'The worst scored ' + pct(st.lo) + ', the best ' + pct(st.hi) + '. That’s a ' + swing + '-point spread from the seed alone.',
+    paper1: 'The paper found the same with BERT, over 2,100 runs.',
+    // 4 · the two types of randomness
+    suspects: 'The seed sets two things, the starting weights and the order. Which one causes the spread?',
+    lockW: 'Fix the weights and change only the order.',
     g1: 'Accuracy still moves ' + st.g1.toFixed(1) + ' points.',
-    lockO: 'Now the same order every run, and only the starting weights change.',
-    g2: st.g2.toFixed(1) + ' points. Both matter, and in the paper they mattered about equally on average.',
-    // 5 · the implications
-    catch: 'That’s a problem for research, because papers usually report one number, not a hundred.',
+    lockO: 'Now fix the order and change only the weights.',
+    g2: st.g2.toFixed(1) + ' points. Both matter, and in the paper they mattered about equally.',
+    // 5 · why it matters
+    catch: 'That’s a problem, because papers usually report one number, not a hundred.',
     ab: 'Say method A reports a single run, and method B reports its best of twenty.',
     abgap: 'B comes out ' + climb + ' points ahead and looks like the better method.',
-    real: 'This happens with published results. On a benchmark called MRPC,',
-    bert: 'BERT’s best run out of 625 seeds beat the reported scores of XLNet, RoBERTa and ALBERT, newer models that were reported as better. Those models weren’t given 625 tries.',
-    // 6 · the solution
-    fair: 'Back to A and B. Give A twenty tries as well,',
-    tie: 'and the gap disappears. They were the same method, and B just had more tries.',
-    fix: 'So the paper says to compare methods at the same number of tries.',
-    race1: 'More tries cost more compute, so the paper also suggests a cheaper way to search: start lots of runs and stop most of them early.',
-    race2: 'Here are all 100 runs as they train. A quarter of the way in, we keep the top ' + KEEP + ' and stop the rest.',
+    fair: 'Now give A twenty tries as well,',
+    tie: 'and the gap disappears. It was the same method. B just had more tries.',
+    fix: 'So compare methods at the same number of tries.',
+    // 6 · the three steps
+    race1: 'More tries cost more compute, so the paper suggests a cheaper search, in three steps.',
+    step1: 'One, start many runs. Here are all 100.',
+    step2: 'Two, stop the weak ones early. A quarter of the way in, we keep the top ' + KEEP + '.',
+    step3: 'Three, finish only the best.',
     race3: (st.bestCut === st.hi
-      ? 'The run that ends up best is among the ' + KEEP + ' we kept'
+      ? 'The best run of all 100 is among the ' + KEEP + ' we kept'
       : 'The best run we kept finishes at ' + pct(st.bestCut) + ', against ' + pct(st.hi) + ' for the best of all 100') +
-      ', and the search cost about ' + cost + ' runs’ worth of training instead of 100.',
-    paper3: 'With BERT, the paper found weak runs often show it within the first epoch, and stopping them early gave small but consistent gains for the same compute.',
-    end: 'So when you see a single score, it’s worth asking how many seeds it took to get it.',
+      ', for about ' + cost + ' runs’ worth of training instead of 100.',
+    end: 'A single score hides a lottery. So when you see one, ask how many seeds it took.',
   };
 }
 </script>
@@ -792,7 +791,7 @@ function LINES(st) {
     ex.show(['body', 'o', 'w', 'score']); ex.focus('w'); await cue(L.head); await W(400); ex.weights(wiOf(order1[0])); await done(40);
     ex.focus('o'); await cue(L.data); await W(300); ex.order(doOf(order1[0])); await done(80);
     ex.show(ALL); ex.focus('seed', 'w', 'o'); ex.seed(1, live); await cue(L.seed); await W(300); if (live) ex.pulse(); await done(80);
-    ex.focus(); await cue(L.run1); await W(200); await train(order1[0], 6600); await done(0);
+    ex.focus(); await cue(L.run1); await W(200); await train(order1[0], 5400); await done(0);
     ex.score(pct(S.fin[order1[0]])); S.ax.best = order1[0]; renderAxis(); look('axis');
     await say(L.score1, 120); look(null);
 
@@ -851,13 +850,10 @@ function LINES(st) {
     await cue(L.ab); await flick(1, 4); S.ax.flags = [flagsAB(e1)[0]]; renderAxis(); await flick(20, 4); S.ax.flags = flagsAB(e1); renderAxis(); await done(60);
     S.ax.bracket = { a: e1, b: e20, label: 'B ahead by ' + ((e20 - e1) * 100).toFixed(1) + ' points' }; renderAxis();
     await say(L.abgap, 120);
-    zone('mrpc'); drawMrpc(0); await cue(L.real); await W(500);
-    for (let k = 1; k <= 3; k++) { drawMrpc(k); await W(300); }
-    await done(0); await cue(L.bert); await W(1800); drawMrpc(4); await done(200);
 
     // ----- 6 · The solution: equal tries, and a cheaper search (start many, stop early) -----
     progress(5, 0); zone('methods'); methods(1, 20); S.ax = { shown: N, lit: new Set(), flags: flagsAB(e1) }; renderAxis();
-    await cue(L.fair); await W(1200); methods(20, 20);
+    await cue(L.fair); await W(700); methods(20, 20);
     await tween(1000, u => { S.ax.flags = flagsAB(e1 + (e20 - e1) * u); renderAxis(); });
     S.ax.bracket = { a: e20, b: e20, label: 'identical' }; renderAxis(); await done(0);
     await say(L.tie, 100);
@@ -866,15 +862,15 @@ function LINES(st) {
     zone('race'); S.topDraw = () => drawRace(race); drawRace(race); S.ax = { shown: 0 }; renderAxis(); look(null);
     await say(L.race1, 80);
     const atStop = STOP / (S.L - 1);
-    await cue(L.race2); await W(300);
+    await cue(L.step1); await W(300);
     await tween(2000, u => { race.u = atStop * u; drawRace(race); });
-    await W(300); race.cut = true; drawRace(race); await W(250);
+    await cue(L.step2); await W(900); race.cut = true; drawRace(race); await done(100);
+    await cue(L.step3); await W(200);
     await tween(2500, u => { race.u = atStop + (1 - atStop) * u; drawRace(race); });
     await done(0);
     race.end = true; drawRace(race);
     S.ax = { shown: N, lit: new Set(S.kept), best: S.best }; renderAxis(live);
     await say(L.race3, 150);
-    await say(L.paper3, 150);
     await say(L.end, 1200);
     goLive(); S.ended = true; $('pp').textContent = 'Replay';
   }

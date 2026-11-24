@@ -1,79 +1,79 @@
 [
   {
-    "text": "Train the same model twice and you can get two quite different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets, and what it means for research results.",
-    "hash": "c58193dd"
+    "text": "Train the same model twice and you can get two very different scores. A 2020 paper by Dodge and colleagues measured how big that gap gets.",
+    "hash": "81b1feab"
   },
   {
-    "text": "Here’s a small neural network. The grey layers stand in for a pretrained model like BERT, which already learned general English from billions of words.",
-    "hash": "53e72a6e"
+    "text": "Here’s a small neural network. The grey layers stand in for a pretrained model like BERT.",
+    "hash": "15dc220e"
   },
   {
-    "text": "We fine-tune it for one narrow task, like deciding whether two sentences mean the same thing. It trains on 64 examples and gets tested on 400 it hasn’t seen.",
-    "hash": "2100fb6e"
+    "text": "We fine-tune it for one task: do two sentences mean the same thing? It trains on 64 examples and is tested on 400 new ones.",
+    "hash": "40c42e9b"
   },
   {
-    "text": "The task needs a new output layer, and its weights start out random. Blue for positive, red for negative.",
-    "hash": "5f8fd5d9"
+    "text": "The task needs a new output layer, and its weights start out random.",
+    "hash": "60bc8ee0"
   },
   {
-    "text": "The training examples also get shuffled into a random order.",
-    "hash": "019223cf"
+    "text": "The training examples get shuffled into a random order.",
+    "hash": "e57f55be"
   },
   {
-    "text": "Both of those random choices come from one number, the seed.",
-    "hash": "11ff7160"
+    "text": "Both random choices come from one number, the seed.",
+    "hash": "8d9a5be8"
   },
   {
-    "text": "Here’s training with seed 1. The model goes through the examples six times, in a fresh order each pass, and every weight shifts a little, the pretrained ones included.",
-    "hash": "349c2808"
+    "text": "Here’s training with seed 1. The model goes through the examples six times, and every weight shifts a little.",
+    "hash": "ffcc8110"
   },
   {
     "text": "It gets 78% of the test examples right. That’s the orange dot.",
     "hash": "7e532043"
   },
   {
-    "text": "Now we keep everything else the same and only change the seed.",
-    "hash": "afd8cf46"
+    "text": "Now change only the seed.",
+    "hash": "6384004f"
   },
   {
     "text": "Here are a hundred seeds.",
     "hash": "9a4d140e"
   },
   {
-    "text": "Each dot is one full training run, and the seed is the only difference between them.",
-    "hash": "b02dca1c"
+    "text": "Each dot is one full training run.",
+    "hash": "9183b2e5"
   },
   {
-    "text": "The worst run scored 60.8%, the best 82.5%. That’s a 21.7-point spread from the seed alone.",
-    "hash": "6a9415f9"
+    "text": "The worst scored 60.8%, the best 82.5%. That’s a 21.7-point spread from the seed alone.",
+    "hash": "58a5c414"
   },
   {
-    "text": "The paper found the same with BERT, over 2,100 runs on four tasks. On the smaller datasets, some runs failed completely.",
-    "hash": "900ed538"
+    "text": "The paper found the same with BERT, over 2,100 runs.",
+    "hash": "1fdbddf5"
   },
   {
-    "text": "The seed controls two things, so which one is responsible? The paper gave each its own seed and varied them one at a time.",
-    "hash": "62daf837"
+    "text": "The seed sets two things, the starting weights and the order. Which one causes the spread?",
+    "hash": "89036389"
   },
   {
-    "text": "Same starting weights every run, and only the order changes.",
-    "hash": "1fc74dfd"
+    "text": "Fix the weights and change only the order.",
+    "hash": "60a12594"
   },
   {
     "text": "Accuracy still moves 11.2 points.",
     "hash": "9c034fdd"
   },
   {
-    "text": "Now the same order every run, and only the starting weights change.",
-    "hash": "53723949"
+    "text": "Now fix the order and change only the weights.",
+    "hash": "52e2bc4c"
   },
   {
-    "text": "19.0 points. Both matter, and in the paper they mattered about equally on average.",
-    "hash": "f60d1c6f"
+    "text": "19.0 points. Both matter, and in the paper they mattered about equally.",
+    "hash": "bcfea5a7"
   },
   {
-    "text": "That’s a problem for research, because papers usually report one number, not a hundred.",
-    "hash": "ab5c7de9"
+    "text": "That’s a problem, because papers usually report one number, not a hundred.",
+    "hash": "410bb475"
   },
   {
     "text": "Say method A reports a single run, and method B reports its best of twenty.",
@@ -84,43 +84,39 @@
     "hash": "bd2e600a"
   },
   {
-    "text": "This happens with published results. On a benchmark called MRPC,",
-    "hash": "d4f05972"
+    "text": "Now give A twenty tries as well,",
+    "hash": "ac58380b"
   },
   {
-    "text": "BERT’s best run out of 625 seeds beat the reported scores of XLNet, RoBERTa and ALBERT, newer models that were reported as better. Those models weren’t given 625 tries.",
-    "hash": "8a845e24"
+    "text": "and the gap disappears. It was the same method. B just had more tries.",
+    "hash": "3ddff966"
   },
   {
-    "text": "Back to A and B. Give A twenty tries as well,",
-    "hash": "b15b7483"
+    "text": "So compare methods at the same number of tries.",
+    "hash": "221f9d81"
   },
   {
-    "text": "and the gap disappears. They were the same method, and B just had more tries.",
-    "hash": "d83c16d6"
+    "text": "More tries cost more compute, so the paper suggests a cheaper search, in three steps.",
+    "hash": "baf23bc9"
   },
   {
-    "text": "So the paper says to compare methods at the same number of tries.",
-    "hash": "2b132fa5"
+    "text": "One, start many runs. Here are all 100.",
+    "hash": "c73e6be6"
   },
   {
-    "text": "More tries cost more compute, so the paper also suggests a cheaper way to search: start lots of runs and stop most of them early.",
-    "hash": "06bb58b7"
+    "text": "Two, stop the weak ones early. A quarter of the way in, we keep the top 30.",
+    "hash": "47e78fd1"
   },
   {
-    "text": "Here are all 100 runs as they train. A quarter of the way in, we keep the top 30 and stop the rest.",
-    "hash": "5b32b58e"
+    "text": "Three, finish only the best.",
+    "hash": "acea2cc5"
   },
   {
-    "text": "The run that ends up best is among the 30 we kept, and the search cost about 48 runs’ worth of training instead of 100.",
-    "hash": "cb1aabc3"
+    "text": "The best run of all 100 is among the 30 we kept, for about 48 runs’ worth of training instead of 100.",
+    "hash": "003b0a66"
   },
   {
-    "text": "With BERT, the paper found weak runs often show it within the first epoch, and stopping them early gave small but consistent gains for the same compute.",
-    "hash": "4adc90f4"
-  },
-  {
-    "text": "So when you see a single score, it’s worth asking how many seeds it took to get it.",
-    "hash": "1c2b5a7d"
+    "text": "A single score hides a lottery. So when you see one, ask how many seeds it took.",
+    "hash": "356709b3"
   }
 ]
